@@ -1,0 +1,29 @@
+{
+  "name": "private-ai",
+  "version": "1.0.0",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx src/data/seed.ts"
+  },
+  "devDependencies": {
+    "@factory-js/factory": "^0.4.0",
+    "@faker-js/faker": "^9.7.0",
+    "@types/node": "^22.15.2",
+    "drizzle-kit": "^0.31.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.2"
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.49",
+    "@langchain/langgraph": "^0.2.67",
+    "@langchain/openai": "^0.5.7",
+    "@libsql/client": "^0.15.4",
+    "dotenv": "^16.5.0",
+    "drizzle-orm": "^0.43.1"
+  }
+}

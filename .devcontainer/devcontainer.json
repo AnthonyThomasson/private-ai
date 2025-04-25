@@ -1,0 +1,53 @@
+{
+  "name": "Private AI - Dev Container",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspaces/private-ai",
+  "dockerComposeFile": "docker-compose.yml",
+  "initializeCommand": "sh ./.devcontainer/scripts/init.sh",
+  "postStartCommand": "sh ./.devcontainer/scripts/post-start.sh",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "launch": {
+          "version": "0.2.0",
+          "configurations": [
+            {
+              "type": "node",
+              "request": "launch",
+              "name": "Launch Chat",
+              "skipFiles": [
+                "<node_internals>/**"
+              ],
+              "program": "${workspaceFolder}/src/index.ts",
+              "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+              "outFiles": [
+                "${workspaceFolder}/**/*.js"
+              ],
+              "console": "integratedTerminal",
+              "internalConsoleOptions": "neverOpen"
+            }
+          ]
+        },
+        "prettier.requireConfig": true,
+        "editor.formatOnPaste": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll": "explicit",
+          "source.organizeImports": "never"
+        }
+      },
+      "extensions": [
+        "ms-azuretools.vscode-docker",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "vitest.explorer",
+        "streetsidesoftware.code-spell-checker",
+        "bierner.markdown-mermaid",
+        "eamodio.gitlens",
+        "github.vscode-github-actions",
+        "GitHub.vscode-pull-request-github",
+        "qwtel.sqlite-viewer"
+      ]
+    }
+  },
+  "remoteUser": "root"
+}

@@ -1,0 +1,11 @@
+services:
+  devcontainer:
+    build: .
+    volumes:
+      - ./../:/workspaces/private-ai
+      # Forward docker socket to allow docker commands to be run from within the container
+      - /var/run/docker.sock:/var/run/docker.sock
+      - devcontainer-zshhistory:/root/commandhistory/.zsh_history
+    command: sleep infinity
+volumes:
+  devcontainer-zshhistory:
