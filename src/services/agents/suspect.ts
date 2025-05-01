@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { MemorySaver } from "@langchain/langgraph";
@@ -26,15 +27,14 @@ const agent = createReactAgent({
   checkpointSaver: agentCheckpointer,
 });
 
-
-const prompt = fs.readFileSync("src/agents/promp_suspect.md", "utf8");
+const prompt = fs.readFileSync("src/services/agents/promp_suspect.md", "utf8");
 
 const promptTemplate = ChatPromptTemplate.fromMessages([
   ["system", prompt],
   ["human", "{input}"],
 ]);
 
-export const chat = async (input: string, characterProfile, murderProfile, locationProfile) => {
+export const chat = async (input: string, characterProfile: { name: any; }, murderProfile: any, locationProfile: any) => {
   
   const formattedPrompt = await promptTemplate.formatMessages({
     input: input,

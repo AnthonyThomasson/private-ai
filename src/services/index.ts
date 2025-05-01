@@ -1,20 +1,20 @@
-import { config } from 'dotenv';
-import { chat } from './agents/suspect';
-import { createInterface } from 'readline';
-import { locations,people, personRelationships } from './data/schema';
-import { faker } from '@faker-js/faker/locale/en';
-import { db } from './data';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { createInterface } from "readline";
+import { chat } from "./agents/suspect";
+import { db } from "@/db";
+import { people, personRelationships } from "@/db/schema";
+import { seed } from "@/db/seed"; 
+import { faker } from "@faker-js/faker/locale/en";
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
-import { seed } from './data/seed';
-import { locationsFactory } from './data/factory';
-config();
+import { locationsFactory } from '@/db/factory';
 
 const rl = createInterface({
 	input: process.stdin,
 	output: process.stdout
-});
 
-export async function chatWithSuspect(message: string, characterProfile, murderProfile, locationProfile) {
+});
+ 
+export async function chatWithSuspect(message: string, characterProfile: any, murderProfile: any, locationProfile: any) {
 	return await chat(message, characterProfile, murderProfile, locationProfile)
 }
 
@@ -94,18 +94,14 @@ async function main() {
     where: eq(people.id, murder.perpetratorId ?? 0)
   })
 
-  const murderLocation = await db.query.locations.findFirst({
-    where: eq(locations.id, murder.locationId ?? 0)
-  })
-
-let characterProfile = {
+const characterProfile = {
 	...suspect,
 	friends,
 	spouse,
 	acquaintances
 } as any;
 
-  let murderProfile = {
+  const murderProfile = {
     ...murder, 
     victim: victim, 
     perpetrator: perpetrator,
@@ -113,19 +109,19 @@ let characterProfile = {
 		"A receipt from a bar called 'The Local' was found in the victim's pocket",
 	]
   } as any;
-  let locationProfile = location as any;
+  const locationProfile = location as any;
 
-  characterProfile.friends = characterProfile.friends.map(friend => {
+  characterProfile.friends = characterProfile.friends.map((friend: { name: any; }) => {
     return {
       name: friend.name,
     }
   })
-  characterProfile.spouse = characterProfile.spouse.map(spouse => {
+  characterProfile.spouse = characterProfile.spouse.map((spouse: { name: any; }) => {
     return {
       name: spouse.name,
     }
   })
-  characterProfile.acquaintances = characterProfile.acquaintances.map(acquaintance => {
+  characterProfile.acquaintances = characterProfile.acquaintances.map((acquaintance: { name: any; }) => {
     return {
       name: acquaintance.name,
     }

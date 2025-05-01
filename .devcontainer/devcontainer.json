@@ -12,21 +12,18 @@
           "version": "0.2.0",
           "configurations": [
             {
-              "type": "node",
+              "name": "Next.js: debug full stack",
+              "type": "node-terminal",
               "request": "launch",
-              "name": "Launch Chat",
-              "skipFiles": [
-                "<node_internals>/**"
-              ],
-              "program": "${workspaceFolder}/src/index.ts",
-              "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
-              "outFiles": [
-                "${workspaceFolder}/**/*.js"
-              ],
-              "console": "integratedTerminal",
-              "internalConsoleOptions": "neverOpen"
+              "command": "npm run dev",
+              "serverReadyAction": {
+                "pattern": "- Local:.+(https?://.+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+              }
             }
-          ]
+          ],
+          "compounds": []
         },
         "prettier.requireConfig": true,
         "editor.formatOnPaste": true,

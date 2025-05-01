@@ -1,29 +1,42 @@
 {
-  "name": "private-ai",
-  "version": "1.0.0",
-  "type": "module",
-  "license": "MIT",
+  "name": "my-app",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
-    "start": "tsx src/index.ts",
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "ai:chat": "tsx src/services/index.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx src/data/seed.ts"
-  },
-  "devDependencies": {
-    "@factory-js/factory": "^0.4.0",
-    "@faker-js/faker": "^9.7.0",
-    "@types/node": "^22.15.2",
-    "drizzle-kit": "^0.31.0",
-    "tsx": "^4.19.3",
-    "typescript": "^5.8.3",
-    "vitest": "^3.1.2"
+    "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
-    "@langchain/core": "^0.3.49",
+    "@langchain/core": "^0.3.50",
     "@langchain/langgraph": "^0.2.67",
-    "@langchain/openai": "^0.5.7",
+    "@langchain/openai": "^0.5.8",
     "@libsql/client": "^0.15.4",
     "dotenv": "^16.5.0",
-    "drizzle-orm": "^0.43.1"
+    "drizzle-orm": "^0.43.1",
+    "next": "15.3.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@factory-js/factory": "^0.4.0",
+    "@faker-js/faker": "^9.7.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.0",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.1",
+    "tailwindcss": "^4",
+    "tsx": "^4.19.4",
+    "typescript": "^5",
+    "vitest": "^3.1.2"
   }
 }
