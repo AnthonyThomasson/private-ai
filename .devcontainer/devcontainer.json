@@ -12,18 +12,35 @@
           "version": "0.2.0",
           "configurations": [
             {
-              "name": "Next.js: debug full stack",
-              "type": "node-terminal",
+              "name": "Next.js: Server-side",
+              "type": "node",
               "request": "launch",
-              "command": "npm run dev",
-              "serverReadyAction": {
-                "pattern": "- Local:.+(https?://.+)",
-                "uriFormat": "%s",
-                "action": "openExternally"
-              }
+              "runtimeExecutable": "npm",
+              "runtimeArgs": ["run", "dev"],
+              "console": "integratedTerminal",
+              "env": {
+                "NODE_OPTIONS": "--inspect"
+              },
+              "internalConsoleOptions": "neverOpen"
+            },
+            {
+              "name": "Next.js: Client-side (Chrome)",
+              "type": "chrome",
+              "request": "launch",
+              "webRoot": "${workspaceFolder}",
+              "sourceMaps": true,
+              "trace": true
             }
           ],
-          "compounds": []
+          "compounds": [
+            {
+              "name": "Debug Next.js (Client + Server)",
+              "configurations": [
+                "Next.js: Server-side",
+                "Next.js: Client-side (Chrome)"
+              ]
+            }
+          ]
         },
         "prettier.requireConfig": true,
         "editor.formatOnPaste": true,
@@ -42,7 +59,10 @@
         "eamodio.gitlens",
         "github.vscode-github-actions",
         "GitHub.vscode-pull-request-github",
-        "qwtel.sqlite-viewer"
+        "qwtel.sqlite-viewer",
+        "bradlc.vscode-tailwindcss",
+        "stivo.tailwind-fold",
+        "csstools.postcss"
       ]
     }
   },

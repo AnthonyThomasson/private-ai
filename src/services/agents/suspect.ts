@@ -3,7 +3,7 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { MemorySaver } from "@langchain/langgraph";
 import { model } from "../model";
-import fs from 'fs';
+import fs from "fs";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
 
@@ -34,18 +34,25 @@ const promptTemplate = ChatPromptTemplate.fromMessages([
   ["human", "{input}"],
 ]);
 
-export const chat = async (input: string, characterProfile: { name: any; }, murderProfile: any, locationProfile: any) => {
-  
+export const chat = async (
+  input: string,
+  characterProfile: { name: any },
+  murderProfile: any,
+  locationProfile: any,
+) => {
   const formattedPrompt = await promptTemplate.formatMessages({
     input: input,
     character_profile: JSON.stringify(characterProfile),
     murder_details: JSON.stringify(murderProfile),
-    location_details: JSON.stringify(locationProfile)
+    location_details: JSON.stringify(locationProfile),
   });
 
-  return await agent.invoke({
-    messages: formattedPrompt,
-  },{
-    configurable: { thread_id: characterProfile.name }
-  });
-}
+  return await agent.invoke(
+    {
+      messages: formattedPrompt,
+    },
+    {
+      configurable: { thread_id: characterProfile.name },
+    },
+  );
+};
