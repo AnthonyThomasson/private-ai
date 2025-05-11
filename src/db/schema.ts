@@ -1,6 +1,27 @@
-import { InferInsertModel } from "drizzle-orm";
+import { InferInsertModel, relations } from "drizzle-orm";
 import { InferSelectModel } from "drizzle-orm";
 import { int, sqliteTable, text } from "drizzle-orm/sqlite-core";
+
+export type Message = InferSelectModel<typeof messages> & {};
+export type NewMessage = InferInsertModel<typeof messages>;
+export const messages = sqliteTable("messages", {
+  id: int("id").primaryKey(),
+  content: text("content").notNull(),
+  createdAt: int("created_at").notNull(),
+  updatedAt: int("updated_at").notNull(),
+  senderId: int("sender_id").references(() => people.id),
+  receiverId: int("receiver_id").references(() => people.id),
+});
+export const messagesRelations = relations(messages, ({ one }) => ({
+  sender: one(people, {
+    fields: [messages.senderId],
+    references: [people.id],
+  }),
+  receiver: one(people, {
+    fields: [messages.receiverId],
+    references: [people.id],
+  }),
+}));
 
 export type Location = InferSelectModel<typeof locations> & {};
 export type NewLocation = InferInsertModel<typeof locations>;
@@ -35,14 +56,38 @@ export const people = sqliteTable("people", {
   personality: text("personality"),
 });
 
-export type Murder = InferSelectModel<typeof murders> & {};
-export type NewMurder = InferInsertModel<typeof murders>;
 export const murders = sqliteTable("murders", {
   id: int("id").primaryKey(),
   description: text("description").notNull(),
   victimId: int("victim_id").references(() => people.id),
   perpetratorId: int("perpetrator_id").references(() => people.id),
-  locationId: int("location_id").references(() => locations.id), // Reference to locations
+  locationId: int("location_id").references(() => locations.id),
+});
+export const murdersRelations = relations(murders, ({ one, many }) => ({
+  victim: one(people, {
+    fields: [murders.victimId],
+    references: [people.id],
+  }),
+  perpetrator: one(people, {
+    fields: [murders.perpetratorId],
+    references: [people.id],
+  }),
+  clues: many(clues, {
+    relationName: "clues",
+  }),
+}));
+export type Murder = InferSelectModel<typeof murders> & {
+  victim: InferSelectModel<typeof people>;
+  perpetrator: InferSelectModel<typeof people>;
+  clues: InferSelectModel<typeof clues>[];
+};
+
+export type Clue = InferSelectModel<typeof clues> & {};
+export type NewClue = InferInsertModel<typeof clues>;
+export const clues = sqliteTable("clues", {
+  id: int("id").primaryKey(),
+  murderId: int("murder_id").references(() => murders.id),
+  description: text("description").notNull(),
 });
 
 export type Evidence = InferSelectModel<typeof evidences> & {};
@@ -72,9 +117,13 @@ export const evidenceRelationships = sqliteTable("evidence_relationships", {
 
 export const schema = {
   people,
+  personRelationships,
   locations,
   evidences,
-  murders,
   evidenceRelationships,
-  personRelationships,
+  murders,
+  murdersRelations,
+  clues,
+  messages,
+  messagesRelations,
 };

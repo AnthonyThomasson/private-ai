@@ -28,6 +28,8 @@ if ! grep -q "DB_FILE_NAME" .env; then
     echo "💾 The database file has been saved to .env file."
 fi
 
+rm -rf local.db
+
 yarn install
 yarn db:push
 yarn db:seed
