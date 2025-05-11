@@ -1,6 +1,8 @@
 services:
   devcontainer:
     build: .
+    ports:
+      - 4983:4983
     volumes:
       - ./../:/workspaces/private-ai
       # Forward docker socket to allow docker commands to be run from within the container

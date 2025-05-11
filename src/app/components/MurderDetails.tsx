@@ -1,18 +1,13 @@
-"use client";
-import { useEffect } from "react";
+import { db } from "@/db";
 import Clues from "./Clues";
 
-export default function MurderDetails() {
-  // const [murderDetails, setMurderDetails] = useState("");
-
-  useEffect(() => {
-    console.log("fetching murder details");
-    fetch("http://localhost:8080/api/v1/murders")
-      .then((res) => res.json())
-      .then((data) => {
-        console.log(data);
-      });
-  }, []);
+export default async function MurderDetails() {
+  const murder = await db.query.murders.findFirst({
+    with: {
+      victim: true,
+      perpetrator: true,
+    },
+  });
 
   return (
     <div className="p-5 flex flex-col gap-4">
@@ -24,7 +19,7 @@ export default function MurderDetails() {
           Murder Details
         </h5>
         <p className="font-normal text-gray-700 dark:text-gray-400">
-          Here is some example details of a murder.
+          {murder?.description}
         </p>
       </a>
 
@@ -38,13 +33,13 @@ export default function MurderDetails() {
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
-              fill-rule="evenodd"
+              fillRule="evenodd"
               d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-              clip-rule="evenodd"
+              clipRule="evenodd"
             ></path>
           </svg>
         </div>
-        <span className="dark:text-gray-800">John Doe</span>
+        <span className="dark:text-gray-800">{murder?.victim?.name}</span>
       </div>
 
       <h3 className="text-2xl dark:text-grey">Perpetrator</h3>
@@ -57,9 +52,9 @@ export default function MurderDetails() {
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
-              fill-rule="evenodd"
+              fillRule="evenodd"
               d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-              clip-rule="evenodd"
+              clipRule="evenodd"
             ></path>
           </svg>
         </div>

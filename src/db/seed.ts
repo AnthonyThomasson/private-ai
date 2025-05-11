@@ -8,6 +8,7 @@ import {
   personRelationshipsFactory,
 } from "./factory";
 import {
+  clues,
   evidenceRelationships,
   evidences,
   locations,
@@ -76,7 +77,7 @@ export const seed = async () => {
         "The alley was narrow and grimy, squeezed between crumbling brick walls. A broken streetlamp cast a weak, flickering light over the cracked concrete, where scraps of paper and glass were scattered. The air hung heavy with the smell of oil and damp trash.",
     })
     .create();
-  await murdersFactory
+  const murder = await murdersFactory
     .props({
       description: () =>
         "A figure lies sprawled across a cracked concrete floor, a gun tossed nearby.",
@@ -96,4 +97,14 @@ export const seed = async () => {
           .create(),
     })
     .create();
+
+  await db.insert(clues).values([
+    {
+      description:
+        "A receipt from the bar 'The Local' was found in the victim's pocket",
+      murderId: murder.id,
+    },
+  ]);
 };
+
+seed().catch(console.error);
