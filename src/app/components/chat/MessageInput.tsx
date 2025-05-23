@@ -4,10 +4,10 @@ import { useState } from "react";
 
 type Props = {
   receiverId: number;
-  messageSent: (message: string) => void;
+  sendMessage: (message: string) => void;
 };
 
-export default function MessageInput({ messageSent }: Props) {
+export default function MessageInput({ sendMessage }: Props) {
   const [message, setMessage] = useState("");
 
   return (
@@ -25,7 +25,7 @@ export default function MessageInput({ messageSent }: Props) {
         onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            messageSent(message);
+            sendMessage(message);
             setMessage("");
           }
         }}
@@ -34,7 +34,7 @@ export default function MessageInput({ messageSent }: Props) {
         type="submit"
         className="py-3 px-5 text-sm font-medium text-center text-white rounded-lg bg-primary-700 sm:w-fit hover:bg-primary-800 focus:ring-4 focus:outline-none focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800 cursor-pointer"
         onClick={() => {
-          messageSent(message);
+          sendMessage(message);
           setMessage("");
         }}
       >

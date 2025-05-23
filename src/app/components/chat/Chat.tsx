@@ -4,8 +4,8 @@ import MessageRecieved from "./MessageRecieved";
 import MessageSent from "./MessageSent";
 import { Message, Person } from "@/db/schema";
 import MessageInput from "./MessageInput";
-import { getMessages, sendMessage } from "@/services/message";
-import { useState } from "react";
+import { useAiChatter } from "@/app/hooks/useAiChatter";
+import Image from "next/image";
 
 interface Props {
   person: Person;
@@ -13,29 +13,10 @@ interface Props {
 }
 
 export default function Chat({ person, initialMessages }: Props) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
-
-  const handleMessageSent = async (message: string) => {
-    const optimisticMessage = {
-      id: Date.now(),
-      content: message,
-      senderId: null,
-      receiverId: person.id,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    setMessages((prev) => [...prev, optimisticMessage as Message]);
-
-    try {
-      await sendMessage(message, null, person.id);
-      setMessages(await getMessages(person.id));
-    } catch (error) {
-      console.error("Failed to send message:", error);
-      setMessages((prev) =>
-        prev.filter((msg) => msg.id !== optimisticMessage.id),
-      );
-    }
-  };
+  const { messages, isTyping, sendMessage } = useAiChatter({
+    person,
+    initialMessages,
+  });
 
   return (
     <div className="flex flex-col h-screen p-5">
@@ -48,8 +29,17 @@ export default function Chat({ person, initialMessages }: Props) {
           );
         })}
       </div>
+      {isTyping && (
+        <Image
+          src="/typing-indicator.gif"
+          alt="Typing indicator"
+          width={340}
+          height={460}
+          className="w-20 h-15"
+        />
+      )}
 
-      <MessageInput receiverId={person.id} messageSent={handleMessageSent} />
+      <MessageInput receiverId={person.id} sendMessage={sendMessage} />
     </div>
   );
 }
