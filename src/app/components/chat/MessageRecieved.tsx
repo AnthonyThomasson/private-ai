@@ -1,5 +1,5 @@
-import { Person } from "@/db/schema";
-import { Message } from "@/db/schema";
+import { Person } from "@/db/models/people";
+import { Message } from "@/db/models/messages";
 import Image from "next/image";
 
 interface Props {

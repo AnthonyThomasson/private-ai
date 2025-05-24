@@ -1,8 +1,9 @@
 "use server";
 
 import { db } from "@/db";
-import { messages } from "@/db/schema";
+import { messages } from "@/db/models/messages";
 import { asc, eq, or } from "drizzle-orm";
+import { processMessage } from "./agents/suspect/suspect";
 
 export const getMessages = async (personId: number) => {
   return JSON.parse(
@@ -38,4 +39,24 @@ export const sendMessage = async (
       }),
     ),
   );
+};
+
+export const messageSuspect = async (suspectId: number, message: string) => {
+  await db.insert(messages).values({
+    content: message,
+    senderId: null,
+    receiverId: suspectId,
+    createdAt: new Date().getTime(),
+    updatedAt: new Date().getTime(),
+  });
+
+  return await processMessage(suspectId, message, async (response) => {
+    await db.insert(messages).values({
+      content: response,
+      senderId: suspectId,
+      receiverId: null,
+      createdAt: new Date().getTime(),
+      updatedAt: new Date().getTime(),
+    });
+  });
 };

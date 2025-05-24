@@ -12,7 +12,7 @@
           "version": "0.2.0",
           "configurations": [
             {
-              "name": "Run tsx script",
+              "name": "Run script",
               "type": "node",
               "request": "launch",
               "program": "${file}",

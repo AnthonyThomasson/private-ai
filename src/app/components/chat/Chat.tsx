@@ -2,11 +2,12 @@
 
 import MessageRecieved from "./MessageRecieved";
 import MessageSent from "./MessageSent";
-import { Message, Person } from "@/db/schema";
+import { Message } from "@/db/models/messages";
 import MessageInput from "./MessageInput";
 import { useAiChatter } from "@/app/hooks/useAiChatter";
 import Image from "next/image";
 import { useRef, useEffect } from "react";
+import { Person } from "@/db/models/people";
 
 interface Props {
   person: Person;

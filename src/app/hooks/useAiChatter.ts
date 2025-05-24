@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Message, Person } from "@/db/schema";
-import { getMessages } from "@/services/message";
+import { getMessages } from "@/services/messages";
+import { Person } from "@/db/models/people";
+import { Message } from "@/db/models/messages";
 
 interface UseMessageHandlerProps {
   person: Person;
@@ -32,8 +33,7 @@ export function useAiChatter({
         method: "POST",
         body: JSON.stringify({
           message,
-          senderId: null,
-          receiverId: person.id,
+          suspectId: person.id,
         }),
       });
 

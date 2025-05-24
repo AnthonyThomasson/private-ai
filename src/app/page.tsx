@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import Chat from "./components/chat/Chat";
 import MurderDetails from "./components/MurderDetails";
-import { getMessages } from "@/services/message";
+import { getMessages } from "@/services/messages";
 
 export default async function Home() {
   const person = await db.query.people.findFirst();
