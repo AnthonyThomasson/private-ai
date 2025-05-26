@@ -8,7 +8,11 @@ export const getMurderDetails = async (murderId: number) => {
     with: {
       victim: true,
       perpetrator: true,
-      clues: true,
+      clueLinks: {
+        with: {
+          clue: true,
+        },
+      },
     },
   });
 
@@ -19,7 +23,5 @@ export const getMurderDetails = async (murderId: number) => {
   return `
 		DESCRIPTION: ${murder.description}
 		VICTIM: ${murder?.victim?.name}
-		PERPETRATOR: ${murder?.perpetrator?.name}
-		CLUES: \n${murder?.clues?.map((clue) => clue.description).join("\n\n- ")}
 	`;
 };

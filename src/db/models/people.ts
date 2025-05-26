@@ -17,6 +17,8 @@ export const people = sqliteTable("people", {
   occupation: text("occupation"),
   description: text("description"),
   personality: text("personality"),
+  image: text("image"),
+
   murderId: int("murder_id").references(() => murders.id),
   locationId: int("location_id").references(() => locations.id),
 });

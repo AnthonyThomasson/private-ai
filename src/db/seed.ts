@@ -9,8 +9,7 @@ export const seed = async () => {
     return;
   }
 
-  const murder = await generateMurder();
-  console.log(murder);
+  await generateMurder();
 };
 
 seed().catch(console.error);

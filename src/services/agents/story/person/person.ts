@@ -4,6 +4,7 @@ import { people, Person } from "@/db/models/people";
 import { ChatOpenAI } from "@langchain/openai";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { generateImageForPerson } from "../../painter/painter";
 
 export const generatePersonFromDescription = async (
   murderId: number,
@@ -60,6 +61,8 @@ export const generatePersonFromDescription = async (
       murderId: murderId,
     })
     .returning();
+
+  await generateImageForPerson(person.id);
 
   return (await db.query.people.findFirst({
     where: eq(people.id, person.id),
