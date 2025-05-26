@@ -8,13 +8,14 @@ import { generateCluesFromMurder } from "../clue/clue";
 
 export const generateMurder = async () => {
   const model = new ChatOpenAI({
-    model: "o4-mini",
+    model: "gpt-4.1-nano",
+    temperature: 1,
   });
 
   const schema = z.object({
     description: z
       .string()
-      .describe("A 1 sentence description of a murder scene"),
+      .describe("A 1 sentence description of a murder scene, including a body"),
   });
 
   const structuredLlm =

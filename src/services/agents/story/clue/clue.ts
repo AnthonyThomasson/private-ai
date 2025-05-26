@@ -39,7 +39,7 @@ export const generateClueFromDescription = async (
     description: z
       .string()
       .describe(
-        "A 1 sentence description of a clue related to the description, clues are not always incriminating",
+        "A 1 sentence description of a clue related to the description, clues are not always incriminating, and must include someone other the victim",
       ),
     relatedPeople: z.array(
       z
