@@ -6,6 +6,8 @@ import OpenAI from "openai";
 import { murders } from "@/db/models/murders";
 
 export const generateImageForMurder = async (murderId: number) => {
+  if (process.env.GENERATE_IMAGES === "false") return;
+
   const murder = await db.query.murders.findFirst({
     where: eq(murders.id, murderId),
     with: {

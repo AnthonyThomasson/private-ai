@@ -4,9 +4,10 @@ import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { generatePersonFromDescription } from "../person/person";
-import { generateCluesFromMurder } from "../clue/clue";
+import { generateCluesFromMurder } from "../clue/generator";
 import { murderTypes } from "./types";
 import { generateImageForMurder } from "../../painter/murder";
+import { randomInt } from "crypto";
 
 export const generateMurder = async () => {
   const model = new ChatOpenAI({
@@ -27,9 +28,14 @@ export const generateMurder = async () => {
 
   const structuredLlm =
     model.withStructuredOutput<z.infer<typeof schema>>(schema);
-  const murderDetails = await structuredLlm.invoke(
-    `Generate a crime scene for a ${randomType} murder, making no mention of the murder type`,
-  );
+
+  // Retry x amount of time to get a more varied murder description
+  let murderDetails: z.infer<typeof schema> = { description: "" };
+  do {
+    murderDetails = await structuredLlm.invoke(
+      `Generate a crime scene for a ${randomType} murder, making no mention of the murder type`,
+    );
+  } while (randomInt(1, 5) !== 5);
 
   const [murder] = await db
     .insert(murders)

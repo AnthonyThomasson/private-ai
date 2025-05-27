@@ -1,0 +1,9 @@
+- Clues MUST NOT be be too obvious.
+- Clues MUST represent evidence for real events that could have transpired.
+- Relationships between people and clues should be described in between 3 and 10 words.
+- You ARE NOT investigating the murder.
+- A person may have multiple clues tied to them.
+- Tie clues to people who are relevant to the clue.
+- The clues should NOT by them selves be enough to solve the murder.
+- The clues should NOT contradict the murder details.
+- The clues should be relevant to the murder details.

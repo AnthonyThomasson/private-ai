@@ -9,6 +9,8 @@ export const generateImageForPerson = async (
   personId: number,
   isDead?: boolean,
 ) => {
+  if (process.env.GENERATE_IMAGES === "false") return;
+
   const person = await db.query.people.findFirst({
     where: eq(people.id, personId),
     with: {
