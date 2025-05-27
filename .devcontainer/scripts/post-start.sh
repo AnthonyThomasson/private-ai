@@ -29,6 +29,7 @@ if ! grep -q "DB_FILE_NAME" .env; then
 fi
 
 rm -rf local.db
+rm -rf public/story/
 
 yarn install
 yarn db:push

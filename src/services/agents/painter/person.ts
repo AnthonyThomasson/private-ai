@@ -5,7 +5,10 @@ import { people } from "@/db/models/people";
 import path from "path";
 import OpenAI from "openai";
 
-export const generateImageForPerson = async (personId: number) => {
+export const generateImageForPerson = async (
+  personId: number,
+  isDead?: boolean,
+) => {
   const person = await db.query.people.findFirst({
     where: eq(people.id, personId),
     with: {
@@ -17,7 +20,7 @@ export const generateImageForPerson = async (personId: number) => {
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  const prompt = `
+  let prompt = `
     A headshot photograph in the style of a retro pixle art video game. The character in 
     the photograph is described below, and the location should be represented in the background.
 
@@ -26,6 +29,16 @@ export const generateImageForPerson = async (personId: number) => {
     Description: ${person?.description}
     Location: ${person?.location?.description}
   `;
+  if (isDead ?? false) {
+    prompt = `
+    A polariod headshot photograph pinned to a bulletin board in the style of a retro pixle art video game. The 
+    character in the photograph is described below.
+
+    Gender: ${person?.gender}
+    Age: ${person?.age}
+    Description: ${person?.description}
+  `;
+  }
 
   const result = await openai.images.generate({
     model: "gpt-image-1",
@@ -33,13 +46,13 @@ export const generateImageForPerson = async (personId: number) => {
     size: "1024x1024",
   });
 
-  if (!fs.existsSync(path.join(process.cwd(), "public/characters"))) {
-    fs.mkdirSync(path.join(process.cwd(), "public/characters"));
-  }
+  fs.mkdirSync(path.join(process.cwd(), "public/story/characters"), {
+    recursive: true,
+  });
 
   const image_base64 = result.data?.[0]?.b64_json;
   const image_bytes = Buffer.from(image_base64 ?? "", "base64");
-  const filePath = `characters/${person?.id}.png`;
+  const filePath = `story/characters/${person?.id}.png`;
   fs.writeFileSync(path.join(process.cwd(), "public", filePath), image_bytes);
 
   await db

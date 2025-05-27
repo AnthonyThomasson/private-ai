@@ -2,12 +2,12 @@ import { InferSelectModel, relations } from "drizzle-orm";
 import { int, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { locations } from "./location";
 import { people } from "./people";
-import { clues } from "./clues";
 import { clueLinks } from "./clueLink";
 
 export const murders = sqliteTable("murders", {
   id: int("id").primaryKey(),
   description: text("description").notNull(),
+  image: text("image"),
   locationId: int("location_id").references(() => locations.id),
   victimId: int("victim_id"),
   perpetratorId: int("perpetrator_id"),
@@ -39,5 +39,5 @@ export type Murder = InferSelectModel<typeof murders> & {
   people: InferSelectModel<typeof people>[];
   victim: InferSelectModel<typeof people>;
   perpetrator: InferSelectModel<typeof people>;
-  clues: InferSelectModel<typeof clues>[];
+  clueLinks: InferSelectModel<typeof clueLinks>[];
 };

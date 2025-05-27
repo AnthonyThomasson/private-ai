@@ -5,7 +5,7 @@ import { int, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { murders } from "./murders";
 import { clueLinks } from "./clueLink";
 
-export type Clue = InferSelectModel<typeof clues> & {};
+export type Clue = InferSelectModel<typeof clues>;
 export type NewClue = InferInsertModel<typeof clues>;
 export const clues = sqliteTable("clues", {
   id: int("id").primaryKey(),

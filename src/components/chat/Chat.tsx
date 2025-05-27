@@ -27,6 +27,26 @@ export default function Chat({ person, initialMessages }: Props) {
 
   return (
     <div className="flex flex-col h-screen p-5">
+      <div className="flex flex-col items-center">
+        <div className="w-full max-w-sm bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700 p-5">
+          <div className="flex flex-col items-center pb-10">
+            <Image
+              className="w-24 h-24 mb-3 rounded-full shadow-lg"
+              src={`/story/characters/${person.id}.png`}
+              alt={`an image of ${person.name}`}
+              width={96}
+              height={96}
+            />
+            <h5 className="mb-1 text-xl font-medium text-gray-900 dark:text-white">
+              {person.name}
+            </h5>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {person.occupation}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-5 overflow-y-auto">
         {messages.map((message: Message) => {
           return message.senderId === person.id ? (

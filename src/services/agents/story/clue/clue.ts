@@ -9,7 +9,7 @@ import { clues } from "@/db/models/clues";
 import { clueLinks } from "@/db/models/clueLink";
 
 export const generateCluesFromMurder = async (murderId: number) => {
-  const numClues = randomInt(1, 3);
+  const numClues = randomInt(2, 5);
 
   const murder = await db.query.murders.findFirst({
     where: eq(murders.id, murderId),

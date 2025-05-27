@@ -1,18 +1,65 @@
 import { db } from "@/db";
-import Chat from "../components/chat/Chat";
-import { getMessages } from "@/services/messages";
+import { clueLinks } from "@/db/models/clueLink";
+import { eq } from "drizzle-orm";
+import Image from "next/image";
 
-export default async function Home() {
-  const person = await db.query.people.findFirst();
-
-  if (!person) {
-    return <div>No person found in the database</div>;
+export default async function Clues() {
+  const murder = await db.query.murders.findFirst();
+  if (!murder) {
+    return <div>No murder found</div>;
   }
 
+  const currentClueLinks = await db.query.clueLinks.findMany({
+    where: eq(clueLinks.murderId, murder.id),
+    with: {
+      clue: true,
+      person: true,
+    },
+  });
+
   return (
-    <Chat
-      person={JSON.parse(JSON.stringify(person))}
-      initialMessages={await getMessages(person.id)}
-    />
+    <div className="relative overflow-x-auto sm:rounded-lg m-10">
+      <h1 className="mb-4 text-4xl font-extrabold leading-none tracking-tight md:text-1xl lg:text-3xl">
+        Clues
+      </h1>
+      <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+          <tr>
+            <th scope="col" className="px-6 py-3">
+              Clue
+            </th>
+            <th scope="col" className="px-6 py-3">
+              Person
+            </th>
+            <th scope="col" className="px-6 py-3">
+              Relation
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {currentClueLinks.map((clueLink) => (
+            <tr
+              key={clueLink.id}
+              className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+            >
+              <td className="px-6 py-4">{clueLink.clue?.description}</td>
+              <td
+                scope="row"
+                className="flex items-center px-6 py-4 text-gray-900 whitespace-nowrap dark:text-white"
+              >
+                <Image
+                  className="w-10 h-10 rounded-full"
+                  width={40}
+                  height={40}
+                  src={`/story/characters/${clueLink.person?.id}.png`}
+                  alt={`an image of ${clueLink.person?.name}`}
+                ></Image>
+              </td>
+              <td className="px-6 py-4">{clueLink.description}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

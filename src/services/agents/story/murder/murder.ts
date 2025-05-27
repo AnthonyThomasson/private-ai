@@ -5,6 +5,8 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { generatePersonFromDescription } from "../person/person";
 import { generateCluesFromMurder } from "../clue/clue";
+import { murderTypes } from "./types";
+import { generateImageForMurder } from "../../painter/murder";
 
 export const generateMurder = async () => {
   const model = new ChatOpenAI({
@@ -12,15 +14,22 @@ export const generateMurder = async () => {
     temperature: 1,
   });
 
+  const randomType =
+    murderTypes[Math.floor(Math.random() * murderTypes.length)];
+  console.log("🔪 Generating murder of type:", randomType);
   const schema = z.object({
     description: z
       .string()
-      .describe("A 1 sentence description of a murder scene, including a body"),
+      .describe(
+        `A 1 sentence description of the murder scene, including a body`,
+      ),
   });
 
   const structuredLlm =
     model.withStructuredOutput<z.infer<typeof schema>>(schema);
-  const murderDetails = await structuredLlm.invoke("Generate a crime scene");
+  const murderDetails = await structuredLlm.invoke(
+    `Generate a crime scene for a ${randomType} murder, making no mention of the murder type`,
+  );
 
   const [murder] = await db
     .insert(murders)
@@ -32,6 +41,7 @@ export const generateMurder = async () => {
   const victim = await generatePersonFromDescription(
     murder.id,
     murderDetails.description ?? "",
+    true,
   );
 
   await db
@@ -43,6 +53,7 @@ export const generateMurder = async () => {
     .where(eq(murders.id, murder.id));
 
   await generateCluesFromMurder(murder.id);
+  await generateImageForMurder(murder.id);
 
   return await db.query.murders.findFirst({
     where: eq(murders.id, murder.id),

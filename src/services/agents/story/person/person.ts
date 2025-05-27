@@ -4,11 +4,12 @@ import { people, Person } from "@/db/models/people";
 import { ChatOpenAI } from "@langchain/openai";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { generateImageForPerson } from "../../painter/painter";
+import { generateImageForPerson } from "../../painter/person";
 
 export const generatePersonFromDescription = async (
   murderId: number,
   description: string,
+  isDead?: boolean,
 ) => {
   const model = new ChatOpenAI({
     model: "o4-mini",
@@ -62,7 +63,7 @@ export const generatePersonFromDescription = async (
     })
     .returning();
 
-  await generateImageForPerson(person.id);
+  await generateImageForPerson(person.id, isDead);
 
   return (await db.query.people.findFirst({
     where: eq(people.id, person.id),
