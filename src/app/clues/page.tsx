@@ -18,7 +18,7 @@ export default async function Clues() {
   });
 
   return (
-    <div className="relative overflow-x-auto sm:rounded-lg m-10">
+    <div className="relative overflow-x-auto sm:rounded-lg m-10 h-screen">
       <h1 className="mb-4 text-4xl font-extrabold leading-none tracking-tight md:text-1xl lg:text-3xl">
         Clues
       </h1>
@@ -27,6 +27,9 @@ export default async function Clues() {
           <tr>
             <th scope="col" className="px-6 py-3">
               Clue
+            </th>
+            <th scope="col" className="px-6 py-3">
+              Visible
             </th>
             <th scope="col" className="px-6 py-3">
               Person
@@ -43,6 +46,17 @@ export default async function Clues() {
               className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
             >
               <td className="px-6 py-4">{clueLink.clue?.description}</td>
+              <td className="px-6 py-4">
+                {clueLink.isVisible ? (
+                  <span className="bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-green-900 dark:text-green-300">
+                    Yes
+                  </span>
+                ) : (
+                  <span className="bg-red-100 text-red-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-red-900 dark:text-red-300">
+                    No
+                  </span>
+                )}
+              </td>
               <td
                 scope="row"
                 className="flex items-center px-6 py-4 text-gray-900 whitespace-nowrap dark:text-white"

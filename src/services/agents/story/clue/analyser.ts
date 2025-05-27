@@ -49,17 +49,18 @@ export const verifyClueAgainstContraint = async (clue: {
     `,
   );
 };
-
-export const numCluesRelatedToCrimeScene = async (murderId: number) => {
+export const isClueFoundAtCrimeScene = async (
+  murderId: number,
+  clue: {
+    description: string;
+    relatedPeople: {
+      relation: string;
+      personId: number;
+    }[];
+  },
+) => {
   const murder = await db.query.murders.findFirst({
     where: eq(murders.id, murderId),
-    with: {
-      clueLinks: {
-        with: {
-          clue: true,
-        },
-      },
-    },
   });
   if (!murder) {
     throw new Error("Murder not found");
@@ -70,18 +71,62 @@ export const numCluesRelatedToCrimeScene = async (murderId: number) => {
   });
 
   const schema = z.object({
-    numClues: z
-      .number()
-      .describe("The number of clues related to the crime scene"),
+    found: z
+      .boolean()
+      .describe(
+        `Return 'true' if the clue is related to the physical crime scene, and 'false' if it is not.`,
+      ),
   });
 
   const structuredLlm =
     model.withStructuredOutput<z.infer<typeof schema>>(schema);
 
   return await structuredLlm.invoke(
-    `Return the number of clues related to the crime scene.
+    `Verify if the clue is related to the physical crime scene. Return 'true' if it is and 'false' if it is not. If it is not, return the reason why.
     
+      Clue: ${JSON.stringify(clue)}
+
       Murder: ${JSON.stringify(murder)}
+    `,
+  );
+};
+
+export const isClueFollowingTheModifier = async (
+  modifier: string,
+  clue: {
+    description: string;
+    relatedPeople: {
+      relation: string;
+      personId: number;
+    }[];
+  },
+) => {
+  const model = new ChatOpenAI({
+    model: "o4-mini",
+  });
+
+  const schema = z.object({
+    following: z
+      .boolean()
+      .describe(
+        "Return 'true' if the clue is following the modifier, and 'false' if it is not",
+      ),
+    reason: z
+      .string()
+      .describe(
+        `If the clue is not following the modifier, return the reason why.`,
+      ),
+  });
+
+  const structuredLlm =
+    model.withStructuredOutput<z.infer<typeof schema>>(schema);
+
+  return await structuredLlm.invoke(
+    `Verify if the clue is following the modifier. Return 'true' if it is and 'false' if it is not. If it is not, return the reason why.
+    
+      Clue: ${JSON.stringify(clue)}
+
+      Modifier: ${modifier}
     `,
   );
 };

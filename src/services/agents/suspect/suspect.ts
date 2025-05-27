@@ -1,7 +1,5 @@
 import { db } from "@/db";
 import { people } from "@/db/models/people";
-import { getMurderDetails } from "@/services/murder";
-import { getPersonProfile } from "@/services/people";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { MemorySaver } from "@langchain/langgraph";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
@@ -15,14 +13,17 @@ export const processMessage = async (
   message: string,
   onComplete: (message: string) => void,
 ) => {
-  const murder = await db.query.murders.findFirst();
-
-  if (!murder) {
-    throw new Error("Murder not found");
-  }
-
   const suspect = await db.query.people.findFirst({
     where: eq(people.id, suspectId),
+    with: {
+      murder: true,
+      location: true,
+      clueLinks: {
+        with: {
+          clue: true,
+        },
+      },
+    },
   });
 
   if (!suspect) {
@@ -46,9 +47,17 @@ export const processMessage = async (
 
   const formattedPrompt = await promptTemplate.formatMessages({
     input: message,
-    person_profile: getPersonProfile(suspect.id),
-    murder_details: getMurderDetails(murder?.id),
-    location_details: `A bar named 'The Local'. It's a popular spot for locals and tourists alike. It's a bit run down, but has a cozy feel. It's a bit dark, but has a warm glow. It's a bit loud, but has a cozy feel. It's a bit dark, but has a warm glow.`,
+    clue_links: JSON.stringify(suspect.clueLinks),
+    person_profile: JSON.stringify(suspect),
+    murder_details: JSON.stringify(suspect.murder),
+    location_details: JSON.stringify(suspect.location),
+    constraints: fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "src/services/agents/suspect/prompt",
+        "constraints.md",
+      ),
+    ),
   });
 
   const encoder = new TextEncoder();

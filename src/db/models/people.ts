@@ -4,6 +4,7 @@ import { InferInsertModel } from "drizzle-orm";
 import { int, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { murders } from "./murders";
 import { locations } from "./location";
+import { clueLinks } from "./clueLink";
 
 export type Person = InferSelectModel<typeof people> & {
   location: InferSelectModel<typeof locations>;
@@ -23,7 +24,7 @@ export const people = sqliteTable("people", {
   locationId: int("location_id").references(() => locations.id),
 });
 
-export const peopleRelations = relations(people, ({ one }) => ({
+export const peopleRelations = relations(people, ({ one, many }) => ({
   location: one(locations, {
     fields: [people.locationId],
     references: [locations.id],
@@ -33,4 +34,5 @@ export const peopleRelations = relations(people, ({ one }) => ({
     references: [murders.id],
     relationName: "murder",
   }),
+  clueLinks: many(clueLinks),
 }));

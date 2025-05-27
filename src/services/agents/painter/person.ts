@@ -1,15 +1,21 @@
 import { db } from "@/db";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import fs from "fs";
 import { people } from "@/db/models/people";
 import path from "path";
 import OpenAI from "openai";
+import { murders } from "@/db/models/murders";
 
-export const generateImageForPerson = async (
-  personId: number,
-  isDead?: boolean,
-) => {
+export const generateImageForPerson = async (personId: number) => {
   if (process.env.GENERATE_IMAGES === "false") return;
+
+  const isDead =
+    (
+      await db
+        .select({ count: count() })
+        .from(murders)
+        .where(eq(murders.victimId, personId))
+    )[0].count > 0;
 
   const person = await db.query.people.findFirst({
     where: eq(people.id, personId),

@@ -7,14 +7,15 @@ import { clueLinks } from "@/db/models/clueLink";
 import { count, eq } from "drizzle-orm";
 import {
   hasEnoughCluesToSolveMurder,
-  numCluesRelatedToCrimeScene,
+  isClueFollowingTheModifier,
+  isClueFoundAtCrimeScene,
   verifyClueAgainstContraint,
 } from "./analyser";
 import { murders } from "@/db/models/murders";
 
 export const getTools = (murderId: number) => {
-  const maxCluesRelatedToCrimeScene = 3;
-  let foundAllPhysicalEvidence = false;
+  const maxCluesFoundAtCrimeScene = 3;
+  let numCluesFoundAtCrimeScene = 0;
 
   const createClue = tool(
     async (args: {
@@ -24,9 +25,15 @@ export const getTools = (murderId: number) => {
         personId: number;
       }[];
     }): Promise<string> => {
+      let modifier = "Create a clue related to the physical crime scene";
+      if (numCluesFoundAtCrimeScene >= maxCluesFoundAtCrimeScene) {
+        modifier =
+          "Create a clue unrelated to the physical crime scene, and that could be found by interviewing a previously created suspect. Use the link_person_to_clue tool to link existing suspects to the new clue.";
+      }
+
       const result = await verifyClueAgainstContraint(args);
       if (!result.valid) {
-        console.log("👮🏻‍♂️ Clue not valid:");
+        console.log("👮‍♂️ Clue not valid to constraints:");
         console.log("   clue:", args.description);
         console.log("   reason:", result.reason);
 
@@ -36,18 +43,30 @@ export const getTools = (murderId: number) => {
         });
       }
 
-      let modifier = "Create a clue related to the physical crime scene";
-      if (!foundAllPhysicalEvidence) {
-        const { numClues: numCrimeSceneClues } =
-          await numCluesRelatedToCrimeScene(murderId);
-        if (numCrimeSceneClues > maxCluesRelatedToCrimeScene) {
-          foundAllPhysicalEvidence = true;
-        }
+      const { following, reason } = await isClueFollowingTheModifier(
+        modifier,
+        args,
+      );
+      if (!following) {
+        console.log("👮‍♂️ Clue did not follow the instructions of the modifier:");
+        console.log("   clue:", args.description);
+        console.log("   modifier:", modifier);
+        console.log("   reason:", reason);
+        return JSON.stringify({
+          continue: false,
+          retry:
+            "The clue is not following the instructions of the modifier. " +
+            reason,
+          modifier,
+        });
       }
-      if (foundAllPhysicalEvidence) {
-        modifier =
-          "Create a clue unrelated to the physical crime scene, linking from an existing person to a new person or new group of people";
+      const { found } = await isClueFoundAtCrimeScene(murderId, args);
+      if (found) {
+        numCluesFoundAtCrimeScene++;
       }
+
+      console.log("❓ Clue:", args.description);
+      console.log("");
 
       const [clue] = await db
         .insert(clues)
@@ -62,6 +81,7 @@ export const getTools = (murderId: number) => {
           description: person.relation,
           clueId: clue.id,
           personId: person.personId,
+          isVisible: found ? 1 : 0,
           murderId,
         });
       }

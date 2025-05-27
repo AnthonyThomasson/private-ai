@@ -2,14 +2,12 @@ import { db } from "@/db";
 import { locations } from "@/db/models/location";
 import { people, Person } from "@/db/models/people";
 import { ChatOpenAI } from "@langchain/openai";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { z } from "zod";
-import { generateImageForPerson } from "../../painter/person";
 
 export const generatePersonFromDescription = async (
   murderId: number,
   description: string,
-  isDead?: boolean,
 ) => {
   const model = new ChatOpenAI({
     model: "o4-mini",
@@ -36,10 +34,29 @@ export const generatePersonFromDescription = async (
   const structuredLlm =
     model.withStructuredOutput<z.infer<typeof schema>>(schema);
 
-  const personDetails = await structuredLlm.invoke([
-    ["system", "Generate a person based on a description."],
-    ["human", description],
-  ]);
+  let personDetails;
+  for (let i = 0; i < 10; i++) {
+    personDetails = await structuredLlm.invoke([
+      ["system", "Generate a person based on a description."],
+      ["human", description],
+    ]);
+
+    const numSameName = (
+      await db
+        .select({ count: count() })
+        .from(people)
+        .where(eq(people.name, personDetails.name))
+    )[0].count;
+    if (numSameName === 0) {
+      break;
+    } else {
+      console.log("🔍 Person already exists, trying again");
+    }
+  }
+
+  if (!personDetails) {
+    throw new Error("Failed to generate person");
+  }
 
   const [location] = await db
     .insert(locations)
@@ -62,8 +79,6 @@ export const generatePersonFromDescription = async (
       murderId: murderId,
     })
     .returning();
-
-  await generateImageForPerson(person.id, isDead);
 
   return (await db.query.people.findFirst({
     where: eq(people.id, person.id),

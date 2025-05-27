@@ -27,7 +27,7 @@ export default async function RootLayout({
           <div className="w-1/4 bg-gray-200">
             <People />
           </div>
-          <div className="w-2/4 bg-gray-300 h-screen">{children}</div>
+          <div className="w-2/4 bg-gray-300">{children}</div>
           <div className="w-1/4 bg-gray-400">
             <MurderDetails />
           </div>
