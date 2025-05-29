@@ -1,4 +1,5 @@
 - Clues MUST NOT be be too obvious.
+- Clues should be very different from each other.
 - Clues MUST NOT be related to detectives working on the case.
 - Clues MUST NOT solely be related to the victim of the crime.
 - Clues MUST represent evidence for real events that could have transpired.
@@ -6,7 +7,7 @@
 - Connections MUST NOT involve interigation or interviews.
 - You ARE NOT investigating the murder.
 - A person may have multiple clues tied to them.
-- Tie clues to people who are relevant to the clue.
+- ONLY tie clues to people who ARE relevant to the clue.
 - The clues should NOT by them selves be enough to solve the murder.
 - The clues should NOT contradict the murder details.
 - The clues should be relevant to the murder details.

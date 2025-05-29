@@ -5,20 +5,22 @@ import { z } from "zod";
 import { eq, not, and, exists } from "drizzle-orm";
 import { generatePersonFromDescription } from "../person/person";
 import { generateCluesFromMurder } from "../clue/generator";
-import { murderTypes } from "./types";
 import { generateImageForMurder } from "../../painter/murder";
 import { people } from "@/db/models/people";
 import { generateImageForPerson } from "../../painter/person";
 import { clueLinks } from "@/db/models/clueLink";
+import { getMurderSeed } from "./seed";
 
 export const generateMurder = async () => {
   const model = new ChatOpenAI({
     model: "o4-mini",
   });
 
-  const randomType =
-    murderTypes[Math.floor(Math.random() * murderTypes.length)];
-  console.log("🔪 Generating murder of type:", randomType);
+  const { type, location } = await getMurderSeed();
+  console.log("🔪 Generating Murder");
+  console.log("   Murder type:", type);
+  console.log("   Murder location:", location);
+
   const schema = z.object({
     description: z
       .string()
@@ -32,7 +34,7 @@ export const generateMurder = async () => {
 
   // Retry x amount of time to get a more varied murder description
   const murderDetails = await structuredLlm.invoke(
-    `Generate a crime scene for a ${randomType} murder, making no mention of the murder type`,
+    `Generate a crime scene for a ${type} murder in the location ${location}, making no mention of the provided murder type or location directly`,
   );
 
   const [murder] = await db

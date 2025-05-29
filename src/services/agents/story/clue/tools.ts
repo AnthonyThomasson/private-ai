@@ -135,6 +135,11 @@ export const getTools = (murderId: number) => {
         murderId,
         args.description,
       );
+      console.log("👤 Person:");
+      console.log("   name:", person.name);
+      console.log("   gender:", person.gender);
+      console.log("   occupation:", person.occupation);
+      console.log("   personality:", person.personality);
       return person.id.toString();
     },
     {
