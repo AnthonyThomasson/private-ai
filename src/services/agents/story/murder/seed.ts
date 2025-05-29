@@ -25,11 +25,11 @@ const getTypeOfMurder = async (context: Context): Promise<Context> => {
   let murderTypes: z.infer<typeof schema> = { types: [] };
   if (context.location) {
     murderTypes = await structuredLlm.invoke(
-      `Generate a list of 10 types of murders that could happen in a realistic story on earth in the location ${context.location}. Do not include legal types of murder. Describe each type in no more than 5 words.`,
+      `Generate a list of 10 types of murders with one victim that could happen in a realistic story on earth in the location ${context.location}. Do not include legal types of murder. Describe each type in no more than 5 words.`,
     );
   } else {
     murderTypes = await structuredLlm.invoke(
-      `Generate a list of 10 types of murders that could happen in a realistic story on earth. Do not include legal types of murder. Describe each type in no more than 5 words.`,
+      `Generate a list of 10 types of murders with one victim that could happen in a realistic story on earth. Do not include legal types of murder. Describe each type in no more than 5 words.`,
     );
   }
   console.log("🤖 Murder types:", murderTypes);

@@ -4,12 +4,12 @@ import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
 import { eq, not, and, exists } from "drizzle-orm";
 import { generatePersonFromDescription } from "../person/person";
-import { generateCluesFromMurder } from "../clue/generator";
 import { generateImageForMurder } from "../../painter/murder";
 import { people } from "@/db/models/people";
 import { generateImageForPerson } from "../../painter/person";
 import { clueLinks } from "@/db/models/clueLink";
 import { getMurderSeed } from "./seed";
+import { generateCluesFromMurder } from "../clue/generator";
 
 export const generateMurder = async () => {
   const model = new ChatOpenAI({
@@ -32,9 +32,10 @@ export const generateMurder = async () => {
   const structuredLlm =
     model.withStructuredOutput<z.infer<typeof schema>>(schema);
 
-  // Retry x amount of time to get a more varied murder description
   const murderDetails = await structuredLlm.invoke(
-    `Generate a crime scene for a ${type} murder in the location ${location}, making no mention of the provided murder type or location directly`,
+    `Generate a crime scene for a ${type} murder in the location ${location}, making no mention of the provided murder 
+    type or location directly. Include a description of the cause of death. The crime should not involve science fiction elements, and be a realistic interpretation of the crime scene. 
+    Include no people other than the body.`,
   );
 
   const [murder] = await db
