@@ -32,7 +32,6 @@ const getTypeOfMurder = async (context: Context): Promise<Context> => {
       `Generate a list of 10 types of murders with one victim that could happen in a realistic story on earth. Do not include legal types of murder. Describe each type in no more than 5 words.`,
     );
   }
-  console.log("🤖 Murder types:", murderTypes);
   context.type =
     murderTypes.types[Math.floor(Math.random() * murderTypes.types.length)];
   return context;
@@ -65,7 +64,6 @@ const getLocationOfMurder = async (context: Context): Promise<Context> => {
   } catch (error) {
     console.error("🤖 Error getting murder locations:", error);
   }
-  console.log("🤖 Murder locations:", locations);
   context.location =
     locations.locations[Math.floor(Math.random() * locations.locations.length)];
   return context;

@@ -20,6 +20,7 @@ export const generateMurder = async () => {
   console.log("🔪 Generating Murder");
   console.log("   Murder type:", type);
   console.log("   Murder location:", location);
+  console.log("");
 
   const schema = z.object({
     description: z
@@ -50,16 +51,29 @@ export const generateMurder = async () => {
     murderDetails.description ?? "",
   );
 
-  console.log("🔪 Murder details:", murderDetails);
-  console.log("");
+  const perpetrator = await generatePersonFromDescription(
+    murder.id,
+    `The perpetrator of the murder: 
+    
+    ${JSON.stringify(murder.description)}`,
+  );
 
   await db
     .update(murders)
     .set({
       locationId: victim?.locationId,
       victimId: victim?.id,
+      perpetratorId: perpetrator?.id,
     })
     .where(eq(murders.id, murder.id));
+
+  console.log("🫆 Murder details:");
+  console.log({
+    description: murderDetails.description,
+    victim: victim?.name,
+    perpetrator: perpetrator?.name,
+  });
+  console.log("");
 
   await generateCluesFromMurder(murder.id);
 

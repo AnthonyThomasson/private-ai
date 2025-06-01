@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import OpenAI from "openai";
 import { murders } from "@/db/models/murders";
+import { callWithRetry } from "../utils";
 
 export const generateImageForMurder = async (murderId: number) => {
   if (process.env.GENERATE_IMAGES === "false") return;
@@ -33,11 +34,13 @@ export const generateImageForMurder = async (murderId: number) => {
     Description: ${murder?.victim?.description}
   `;
 
-  const result = await openai.images.generate({
-    model: "gpt-image-1",
-    prompt,
-    size: "1536x1024",
-  });
+  const result = await callWithRetry(async () =>
+    openai.images.generate({
+      model: "gpt-image-1",
+      prompt,
+      size: "1536x1024",
+    }),
+  );
 
   fs.mkdirSync(path.join(process.cwd(), "public/story/murders"), {
     recursive: true,

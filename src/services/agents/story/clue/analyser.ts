@@ -1,25 +1,28 @@
-import path from "path";
 import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
-import fs from "fs";
+import { murders } from "@/db/models/murders";
+import { db } from "@/db";
+import { eq } from "drizzle-orm";
+import { callWithRetry } from "../../utils";
 
-export const verifyClueAgainstContraint = async (args: {
-  originalPrompt: string;
-  clue: {
-    description: string;
-    relatedPeople: {
-      relation: string;
-      personId: number;
-    }[];
-  };
-  disproveClue: {
-    description: string;
-    relatedPeople: {
-      relation: string;
-      personId: number;
-    }[];
-  };
-}) => {
+export const verifyOutputAgainstConstraints = async (
+  murderId: number,
+  output: string,
+  constraints: string,
+) => {
+  const murder = await db.query.murders.findFirst({
+    where: eq(murders.id, murderId),
+    with: {
+      victim: true,
+      clueLinks: {
+        with: {
+          clue: true,
+          person: true,
+        },
+      },
+    },
+  });
+
   const model = new ChatOpenAI({
     model: "o4-mini",
   });
@@ -28,31 +31,27 @@ export const verifyClueAgainstContraint = async (args: {
     valid: z
       .boolean()
       .describe(
-        "Return 'true' if the clue meets the cronstraints and 'false' if it does not",
+        "Return 'true' if the clue follows the rule and 'false' if it does not",
       ),
     reason: z
       .string()
-      .describe(`If the clue does not meet the contraints return false`),
+      .describe(`If the clue does not follow the rules, return the reason why`),
   });
-
-  const constraints = fs.readFileSync(
-    path.join(
-      process.cwd(),
-      "src/services/agents/story/clueNEW/prompt",
-      "constraints.md",
-    ),
-    "utf8",
-  );
 
   const structuredLlm =
     model.withStructuredOutput<z.infer<typeof schema>>(schema);
 
-  return await structuredLlm.invoke(
-    `Verify if the clue meets the constraints. Return 'true' if it does and 'false' if it does not. If it does not, return the reason why.
+  return await callWithRetry(async () =>
+    structuredLlm.invoke(
+      `Verify if the output meets the following rules. Return 'true' if it does and 'false' if it does not. If it does not, return the reason why.
     
-      Clue: ${JSON.stringify(args)}
+      OUTPUT: ${output}
 
-      Constraints: ${constraints}
-    `,
+      MURDER: ${JSON.stringify(murder)}
+
+      RULES: ${constraints}
+      `,
+      { recursionLimit: 100 },
+    ),
   );
 };

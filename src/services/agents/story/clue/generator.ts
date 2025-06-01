@@ -1,21 +1,21 @@
 import { db } from "@/db";
 import { murders } from "@/db/models/murders";
-import { ChatOpenAI } from "@langchain/openai";
-import { and, not, eq } from "drizzle-orm";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
-import fs from "fs";
-import path from "path";
-import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import { getTools } from "./tools";
-import { generatePersonFromDescription } from "../person/person";
-import { people } from "@/db/models/people";
+import { eq } from "drizzle-orm";
 import { clueLinks } from "@/db/models/clueLink";
+import { getClueChainsToGenerate } from "./thinker";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { ChatOpenAI } from "@langchain/openai";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { getTools } from "./tools";
+import path from "path";
+import fs from "fs";
 
 export const generateCluesFromMurder = async (murderId: number) => {
   const murder = await db.query.murders.findFirst({
     where: eq(murders.id, murderId),
     with: {
       victim: true,
+      perpetrator: true,
     },
   });
 
@@ -23,26 +23,15 @@ export const generateCluesFromMurder = async (murderId: number) => {
     throw new Error("Murder not found");
   }
 
-  await generatePersonFromDescription(
-    murderId,
-    `The perpetrator of the murder: 
-    
-    ${JSON.stringify(murder.description)}`,
-  );
-
-  const perpetrator = await db.query.people.findFirst({
-    where: and(
-      eq(people.murderId, murderId),
-      not(eq(people.id, murder.victimId ?? 0)),
-    ),
-  });
-  await db.update(murders).set({
-    perpetratorId: perpetrator?.id,
-  });
+  console.log("🧪 Generating initial clues");
+  console.log("");
 
   await generatClues(
     murderId,
-    `Create ${Math.floor(Math.random() * 3) + 2} clues leading to additional information. They could include possible witnesses, suspects, or forensic evidence that lead to more information about the murder. The clues should not incriminate the individules tied to them, but should be leads to possibly more information about the murder. The clues should not be reported by the people they are tied to, they should be the result of a investigation leading to them for more information.`,
+    `Create clues based on forensic evidence in the murder scene. The clues should not incriminate the perpetrator, 
+    but should be leads to leads to more information about the murder, including possible witnesses or individuals 
+    may know more about what happened.`,
+    2,
   );
 
   await db
@@ -52,20 +41,37 @@ export const generateCluesFromMurder = async (murderId: number) => {
     })
     .where(eq(clueLinks.murderId, murderId));
 
-  await generatClues(
-    murderId,
-    `generate ${Math.floor(Math.random() * 6) + 3} rumors and false leads about the murder. The leads need to be able to be revealed through the interrogation of suspects, and not by any physical investigation. Include these leads should be linked to multiple clues that verify the leads are false.`,
-  );
+  // console.log("🗣️ Generating rumors");
+  // console.log("");
+
+  // await generatClues(
+  //   murderId,
+  //   `generate false leads and rumors about the murder. Each rumor should also contain additional connection disproving
+  //   the rumor through witness statements or other evidence that could be obtained though interrogating additional people.`,
+  //   Math.floor(Math.random() * 6) + 3,
+  // );
+
+  console.log("🚔 Generating incriminating clues");
+  console.log("");
 
   await generatClues(
     murderId,
-    `generate ${Math.floor(Math.random() * 3) + 2} multiple coherent clues incriminating the perpetrator. The clues NEED to be retrievable through the interrogation of the perpetrator or other suspects, and not by any physical investigation. Clues should should be connected to some existing suspects so that uncovering them is possible.:
+    `generate clues incriminating the perpetrator. Although the leads can contain aditional suspects and clues, they should be 
+    connected to at least one existing clue.The clues NEED to be retrievable through the interrogation of the perpetrator or other 
+    suspects, and not by any physical investigation. Clues should should be connected to some existing suspects so that uncovering 
+    them is possible.
     
-      ${JSON.stringify(perpetrator)}`,
+    # PERPETRATOR
+    ${JSON.stringify(murder.perpetrator)}`,
+    1,
   );
 };
 
-export const generatClues = async (murderId: number, direction: string) => {
+export const generatClues = async (
+  murderId: number,
+  direction: string,
+  numberOfClues: number,
+) => {
   const murder = await db.query.murders.findFirst({
     where: eq(murders.id, murderId),
     with: {
@@ -83,7 +89,13 @@ export const generatClues = async (murderId: number, direction: string) => {
     throw new Error("Murder not found");
   }
 
-  const { createClue, createPerson, linkPersonToClue } = getTools(murder.id);
+  const cluesChainsToGenerate = await getClueChainsToGenerate(
+    murder.id,
+    direction,
+    numberOfClues,
+  );
+
+  const { createClue } = getTools(murder.id);
 
   const promptTemplate = ChatPromptTemplate.fromMessages([
     [
@@ -91,31 +103,18 @@ export const generatClues = async (murderId: number, direction: string) => {
       fs.readFileSync(
         path.join(
           process.cwd(),
-          "src/services/agents/story/clueNEW/prompt",
+          "src/services/agents/story/clue/prompt",
           "generator.md",
         ),
         "utf8",
       ),
     ],
-    ["human", "{directions}"],
+    ["human", "{clueChains}"],
   ]);
 
   const formattedPrompt = await promptTemplate.formatMessages({
-    directions: direction,
-    murder_details: murder.description,
-    victim: JSON.stringify(murder.victim),
-    existing_clues: JSON.stringify(murder.clueLinks),
-    constraints: fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/services/agents/story/clueNEW/prompt",
-        "constraints.md",
-      ),
-      "utf8",
-    ),
+    clueChains: cluesChainsToGenerate,
     create_clue: "create_clue",
-    create_person: "create_person",
-    link_person_to_clue: "link_person_to_clue",
   });
 
   const agent = createReactAgent({
@@ -123,8 +122,8 @@ export const generatClues = async (murderId: number, direction: string) => {
       model: "o4-mini",
       openAIApiKey: process.env.OPENAI_API_KEY,
     }),
-    tools: [createClue, createPerson, linkPersonToClue],
+    tools: [createClue],
   });
 
-  await agent.invoke({ messages: formattedPrompt }, { recursionLimit: 200 });
+  await agent.invoke({ messages: formattedPrompt });
 };

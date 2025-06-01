@@ -5,6 +5,7 @@ import { people } from "@/db/models/people";
 import path from "path";
 import OpenAI from "openai";
 import { murders } from "@/db/models/murders";
+import { callWithRetry } from "../utils";
 
 export const generateImageForPerson = async (personId: number) => {
   if (process.env.GENERATE_IMAGES === "false") return;
@@ -48,11 +49,13 @@ export const generateImageForPerson = async (personId: number) => {
   `;
   }
 
-  const result = await openai.images.generate({
-    model: "gpt-image-1",
-    prompt,
-    size: "1024x1024",
-  });
+  const result = await callWithRetry(async () =>
+    openai.images.generate({
+      model: "gpt-image-1",
+      prompt,
+      size: "1024x1024",
+    }),
+  );
 
   fs.mkdirSync(path.join(process.cwd(), "public/story/characters"), {
     recursive: true,

@@ -18,7 +18,7 @@ export const clueLinks = sqliteTable("clue_links", {
   clueId: int("clue_id").references(() => clues.id),
   personId: int("person_id").references(() => people.id),
   murderId: int("murder_id").references(() => murders.id),
-  isVisible: int("is_visible").notNull().default(1),
+  isVisible: int("is_visible").notNull().default(0),
 });
 
 export const clueLinksRelations = relations(clueLinks, ({ one }) => ({

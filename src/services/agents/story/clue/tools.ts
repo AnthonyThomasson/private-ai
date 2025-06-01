@@ -1,103 +1,98 @@
 import { db } from "@/db";
+import { clueLinks } from "@/db/models/clueLink";
 import { clues } from "@/db/models/clues";
+import { murders } from "@/db/models/murders";
 import { tool } from "@langchain/core/tools";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { generatePersonFromDescription } from "../person/person";
-import { clueLinks } from "@/db/models/clueLink";
-import { verifyClueAgainstContraint } from "./analyser";
+import { verifyOutputAgainstConstraints } from "./analyser";
 
 export const getTools = (murderId: number) => {
   const createClue = tool(
     async (args: {
-      originalPrompt: string;
+      originalClueDescription: string;
       clue: {
         description: string;
         relatedPeople: {
           relation: string;
           personId: number;
-        }[];
-      };
-      disproveClue: {
-        description: string;
-        relatedPeople: {
-          relation: string;
-          personId: number;
+          newPersonDescription: string;
         }[];
       };
     }): Promise<string> => {
-      console.log("🔍 Evaluating clue:", args);
+      console.log("🔍 Adding clue:");
+      console.log("  description:", args.clue.description);
+      console.log("  relatedPeople:", args.clue.relatedPeople);
       console.log("");
 
-      const result = await verifyClueAgainstContraint(args);
-      if (!result.valid) {
-        console.log("👮‍♂️ Clue not valid to constraints:");
-        console.log("   clue:", args.clue.description);
-        console.log("   reason:", result.reason);
-        console.log("");
+      const murder = await db.query.murders.findFirst({
+        where: eq(murders.id, murderId),
+        with: {
+          people: true,
+        },
+      });
 
-        return JSON.stringify({
-          retry: result.reason,
-        });
+      if (!murder) {
+        throw new Error("Murder not found");
       }
 
-      console.log("❓ Clue:", args.clue.description);
-      console.log("");
-
-      if (args.disproveClue.description !== "") {
-        console.log("❓ Disprove clue:", args.disproveClue.description);
+      // verify related people
+      const result = await verifyOutputAgainstConstraints(
+        murderId,
+        JSON.stringify(args.clue.relatedPeople),
+        `Verify that newPersonDescription does not match any exiting people in the murder. That field
+        is to be used to generate a new person if the person does not exist. If they do exist they should
+        be tied to the clue wiht personId.
+        
+        EXISTING PEOPLE: ${JSON.stringify(murder.people)}
+        `,
+      );
+      if (!result.valid) {
+        console.log("❌ Invalid use of relatedPeople:");
+        console.log("   reason:", result.reason);
         console.log("");
+        return `RETRY: ${result.reason}`;
       }
 
       const [clue] = await db
         .insert(clues)
         .values({
-          murderId,
           description: args.clue.description,
+          murderId,
         })
         .returning();
 
       for (const person of args.clue.relatedPeople) {
+        let personId = person.personId;
+        if (person.newPersonDescription) {
+          const newPerson = await generatePersonFromDescription(
+            murder.id,
+            person.newPersonDescription,
+          );
+          personId = newPerson.id;
+        }
+
         await db.insert(clueLinks).values({
-          description: person.relation,
-          clueId: clue.id,
-          personId: person.personId,
           murderId,
+          clueId: clue.id,
+          personId,
+          description: person.relation,
         });
       }
 
-      if (args.disproveClue.description !== "") {
-        const [disproveClue] = await db
-          .insert(clues)
-          .values({
-            murderId,
-            description: args.disproveClue.description,
-          })
-          .returning();
-
-        for (const person of args.disproveClue.relatedPeople) {
-          await db.insert(clueLinks).values({
-            description: person.relation,
-            clueId: disproveClue.id,
-            personId: person.personId,
-            murderId,
-          });
-        }
-      }
-      return JSON.stringify({
-        clueId: clue.id,
-      });
+      return "success";
     },
     {
       name: "create_clue",
       description:
-        "Create a new clue from a description, keep creating clues until this tool returns 'stop'",
+        "Create a new clue from a description, if the clue is not valid, apply the directions provided in the retry response",
       schema: z.object({
-        originalPrompt: z
+        originalClueDescription: z
           .string()
           .describe(
-            "The full unaltered original prompt that generated the clue",
+            "The original clue description that the clue is generated from",
           ),
-
         clue: z
           .object({
             description: z.string().describe("Description of the clue"),
@@ -105,86 +100,28 @@ export const getTools = (murderId: number) => {
               z.object({
                 relation: z
                   .string()
-                  .describe("Relation of the person to the clue"),
-                personId: z.number().describe("Id of the person"),
+                  .describe(
+                    "A one sentence description of the relation that the person has to the clue",
+                  ),
+                personId: z
+                  .number()
+                  .describe(
+                    "Id of the person if the person already exists, set this to 0 if the person does not exist",
+                  ),
+                newPersonDescription: z
+                  .string()
+                  .describe(
+                    "Description of the person if the person does not exist",
+                  ),
               }),
             ),
           })
           .describe("The clue to be created"),
-
-        disproveClue: z
-          .object({
-            description: z.string().describe("Description of the clue"),
-            relatedPeople: z.array(
-              z.object({
-                relation: z
-                  .string()
-                  .describe("Relation of the person to the clue"),
-                personId: z.number().describe("Id of the person"),
-              }),
-            ),
-          })
-          .describe("An optional clue to disprove the other clue"),
-      }),
-    },
-  );
-
-  const createPerson = tool(
-    async (args: { description: string }): Promise<string> => {
-      const person = await generatePersonFromDescription(
-        murderId,
-        args.description,
-      );
-      console.log("👤 Person:");
-      console.log("   name:", person.name);
-      console.log("   gender:", person.gender);
-      console.log("   occupation:", person.occupation);
-      console.log("   personality:", person.personality);
-      console.log("");
-      return person.id.toString();
-    },
-    {
-      name: "create_person",
-      description:
-        "Create a new person to be related to a clue, the ID of the person is returned in the response",
-      schema: z.object({
-        description: z.string().describe("Description of the person"),
-      }),
-    },
-  );
-
-  const linkPersonToClue = tool(
-    async (args: {
-      personId: number;
-      clueId: number;
-      relation: string;
-    }): Promise<string> => {
-      await db.insert(clueLinks).values({
-        description: args.relation,
-        clueId: Number(args.clueId),
-        personId: Number(args.personId),
-        murderId: murderId,
-      });
-      return "success";
-    },
-    {
-      name: "link_person_to_clue",
-      description: "Link an existing person to a clue",
-      schema: z.object({
-        personId: z
-          .number()
-          .describe("The id returned from create_person, or in existing clues"),
-        clueId: z
-          .number()
-          .describe("The id returned from create_clue, or in existing clues"),
-        relation: z.string().describe("Relation of the person to the clue"),
       }),
     },
   );
 
   return {
     createClue,
-    createPerson,
-    linkPersonToClue,
   };
 };

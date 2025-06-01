@@ -51,6 +51,8 @@ export const generatePersonFromDescription = async (
       break;
     } else {
       console.log("🔍 Person already exists, trying again");
+      console.log("   Description:", description);
+      console.log("");
     }
   }
 
@@ -79,6 +81,14 @@ export const generatePersonFromDescription = async (
       murderId: murderId,
     })
     .returning();
+
+  console.log("👤 Person:");
+  console.log("   Name:", personDetails.name);
+  console.log("   Age:", personDetails.age);
+  console.log("   Gender:", personDetails.gender);
+  console.log("   Occupation:", personDetails.occupation);
+  console.log("   Personality:", personDetails.personality);
+  console.log("");
 
   return (await db.query.people.findFirst({
     where: eq(people.id, person.id),
