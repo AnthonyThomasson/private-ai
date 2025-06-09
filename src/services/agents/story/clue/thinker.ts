@@ -12,17 +12,14 @@ import { callWithRetry } from "../../utils";
 import { verifyOutputAgainstConstraints } from "./analyser";
 
 const getAddClueChainsTool = (murderId: number) => {
-  let addedClueChains: string[] = [];
+  let addedClueChain: string = "";
 
-  const getClueChains = () => {
-    return addedClueChains;
+  const getClueChain = () => {
+    return addedClueChain;
   };
 
-  const addClueChains = tool(
-    async (args: {
-      direction: string;
-      clueChains: string[];
-    }): Promise<string> => {
+  const addClueChain = tool(
+    async (args: { direction: string; clueChain: string }): Promise<string> => {
       const murder = await db.query.murders.findFirst({
         where: eq(murders.id, murderId),
       });
@@ -33,13 +30,13 @@ const getAddClueChainsTool = (murderId: number) => {
       // verify against direction
       let result = await verifyOutputAgainstConstraints(
         murderId,
-        JSON.stringify(args.clueChains),
-        `Verify the clue chains follow the direction: "${args.direction}"`,
+        JSON.stringify(args.clueChain),
+        `Verify the clue chain follow the direction: "${args.direction}"`,
       );
       if (!result.valid) {
         console.log("❌ Invalid direction:");
         console.log("   reason:", result.reason);
-        console.log("   clue chains:", args.clueChains);
+        console.log("   clue chain:", args.clueChain);
         console.log("");
         return `RETRY: ${result.reason}`;
       }
@@ -47,9 +44,9 @@ const getAddClueChainsTool = (murderId: number) => {
       // verify against murder details
       result = await verifyOutputAgainstConstraints(
         murderId,
-        JSON.stringify(args.clueChains),
-        `Verify the clue chains follow make sense in the context of the murder details and its clues. Note that 
-        new people may be added to the murder investigation through the clue chains.
+        JSON.stringify(args.clueChain),
+        `Verify the clue chain makes sense in the context of the murder details and its clues. Note that 
+        new people may be added to the murder investigation through the clue chain.
         
         Murder details: ${JSON.stringify(murder)}
         `,
@@ -57,19 +54,18 @@ const getAddClueChainsTool = (murderId: number) => {
       if (!result.valid) {
         console.log("❌ Invalid inconsistent with murder details:");
         console.log("   reason:", result.reason);
-        console.log("   clue chains:", args.clueChains);
+        console.log("   clue chain:", args.clueChain);
         console.log("");
         return `RETRY: ${result.reason}`;
       }
 
-      // verify constraints
       result = await verifyOutputAgainstConstraints(
         murderId,
-        JSON.stringify(args.clueChains),
+        JSON.stringify(args.clueChain),
         fs.readFileSync(
           path.join(
             process.cwd(),
-            "src/services/agents/story/clue/prompt/clue_chains_constraints.md",
+            "src/services/agents/story/clue/prompt/clue_chain_constraints.md",
           ),
           "utf8",
         ),
@@ -77,39 +73,36 @@ const getAddClueChainsTool = (murderId: number) => {
       if (!result.valid) {
         console.log("❌ Invalid constraints:");
         console.log("   reason:", result.reason);
-        console.log("   clue chains:", args.clueChains);
+        console.log("   clue chain:", args.clueChain);
         console.log("");
         return `RETRY: ${result.reason}`;
       }
-      addedClueChains = args.clueChains;
+      addedClueChain = args.clueChain;
       return "success";
     },
     {
-      name: "addClueChains",
-      description: "Add clue chains to the murder",
+      name: "addClueChain",
+      description: "Add clue chain to the murder",
       schema: z.object({
         direction: z.string(),
-        clueChains: z.array(
-          z
-            .string()
-            .describe(
-              "A description of a clue or list of clues representing a chain of leads and information that may be relevant to the murder.",
-            ),
-        ),
+        clueChain: z
+          .string()
+          .describe(
+            "A list of clues representing a chain of leads and information that may be relevant to the murder.",
+          ),
       }),
     },
   );
 
   return {
-    addClueChains,
-    getClueChains,
+    addClueChain,
+    getClueChain,
   };
 };
 
-export const getClueChainsToGenerate = async (
+export const getClueChainToGenerate = async (
   murderId: number,
   direction: string,
-  numberOfClues: number,
 ) => {
   const murder = await db.query.murders.findFirst({
     where: eq(murders.id, murderId),
@@ -124,14 +117,14 @@ export const getClueChainsToGenerate = async (
     },
   });
 
-  const { addClueChains, getClueChains } = getAddClueChainsTool(murderId);
+  const { addClueChain, getClueChain } = getAddClueChainsTool(murderId);
 
   const agent = createReactAgent({
     llm: new ChatOpenAI({
-      model: "o4-mini",
+      model: "gpt-4.1-mini",
       openAIApiKey: process.env.OPENAI_API_KEY,
     }),
-    tools: [addClueChains],
+    tools: [addClueChain],
   });
 
   const promptTemplate = ChatPromptTemplate.fromMessages([
@@ -145,7 +138,7 @@ export const getClueChainsToGenerate = async (
     ],
     [
       "human",
-      `Generate {numberOfClues} clue chains for the murder. Call the tool "addClueChains" to add the clue chains to the murder. The clue chains should be relevant to the murder and the direction.
+      `Generate a chain of clues for the murder. Call the tool "addClueChain" to add the clue chain to the murder. The clue chain should be relevant to the murder and the direction.
       
       Direction: {direction}
       Murder: {murder}
@@ -159,21 +152,15 @@ export const getClueChainsToGenerate = async (
     constraints: fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/services/agents/story/clue/prompt/clue_chains_constraints.md",
+        "src/services/agents/story/clue/prompt/clue_chain_constraints.md",
       ),
       "utf8",
     ),
-    numberOfClues: numberOfClues * 2,
   });
 
   await callWithRetry(async () =>
     agent.invoke({ messages: formattedPrompt }, { recursionLimit: 100 }),
   );
 
-  // randomly select numberOfClues clue chains
-  const selectedClueChains = getClueChains()
-    .sort(() => Math.random() - 0.5)
-    .slice(0, numberOfClues);
-
-  return selectedClueChains;
+  return getClueChain();
 };

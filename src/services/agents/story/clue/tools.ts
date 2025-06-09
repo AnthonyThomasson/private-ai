@@ -38,7 +38,7 @@ export const getTools = (murderId: number) => {
       }
 
       // verify related people
-      const result = await verifyOutputAgainstConstraints(
+      let result = await verifyOutputAgainstConstraints(
         murderId,
         JSON.stringify(args.clue.relatedPeople),
         `Verify that newPersonDescription does not match any exiting people in the murder. That field
@@ -50,6 +50,22 @@ export const getTools = (murderId: number) => {
       );
       if (!result.valid) {
         console.log("❌ Invalid use of relatedPeople:");
+        console.log("   reason:", result.reason);
+        console.log("");
+        return `RETRY: ${result.reason}`;
+      }
+
+      // verify unique names
+      result = await verifyOutputAgainstConstraints(
+        murderId,
+        JSON.stringify(args.clue.relatedPeople),
+        `Verify that newPersonDescription does not include a name that is already used in the murder.
+        
+        EXISTING PEOPLE: ${JSON.stringify(murder.people)}
+        `,
+      );
+      if (!result.valid) {
+        console.log("❌ Existing person name:");
         console.log("   reason:", result.reason);
         console.log("");
         return `RETRY: ${result.reason}`;

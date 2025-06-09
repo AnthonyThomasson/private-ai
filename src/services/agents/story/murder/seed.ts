@@ -8,7 +8,7 @@ type Context = {
 
 const getTypeOfMurder = async (context: Context): Promise<Context> => {
   const model = new ChatOpenAI({
-    model: "o4-mini",
+    model: "gpt-4.1-mini",
   });
 
   const schema = z.object({
@@ -39,7 +39,7 @@ const getTypeOfMurder = async (context: Context): Promise<Context> => {
 
 const getLocationOfMurder = async (context: Context): Promise<Context> => {
   const model = new ChatOpenAI({
-    model: "o4-mini",
+    model: "gpt-4.1-mini",
   });
 
   const schema = z.object({
@@ -77,14 +77,40 @@ function shuffle<T>(array: T[]): T[] {
   return array;
 }
 
+const isItPossible = async (context: Context): Promise<boolean> => {
+  const model = new ChatOpenAI({
+    model: "gpt-4.1-mini",
+  });
+
+  const schema = z.object({
+    isPossible: z
+      .boolean()
+      .describe(
+        "Whether the murder is possible, and that it contains only one victim",
+      ),
+  });
+
+  const structuredLlm =
+    model.withStructuredOutput<z.infer<typeof schema>>(schema);
+
+  const isPossible = await structuredLlm.invoke(
+    `Is it possible for a murder of type ${context.type} to happen in the location ${context.location}, and does the murder contain only one victim?`,
+  );
+  return isPossible.isPossible;
+};
 export const getMurderSeed = async () => {
   let context: Context = {
     location: null,
     type: null,
   };
 
-  for (const fn of shuffle([getTypeOfMurder, getLocationOfMurder])) {
-    context = await fn(context);
-  }
+  let maxAttempts = 10;
+  do {
+    for (const fn of shuffle([getTypeOfMurder, getLocationOfMurder])) {
+      context = await fn(context);
+    }
+    maxAttempts--;
+  } while (!(await isItPossible(context)) && maxAttempts > 0);
+
   return context;
 };
