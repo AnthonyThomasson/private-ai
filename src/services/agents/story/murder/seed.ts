@@ -8,7 +8,7 @@ type Context = {
 
 const getTypeOfMurder = async (context: Context): Promise<Context> => {
   const model = new ChatOpenAI({
-    model: "o4-mini",
+    model: "gpt-4.1-mini",
   });
 
   const schema = z.object({
@@ -39,7 +39,7 @@ const getTypeOfMurder = async (context: Context): Promise<Context> => {
 
 const getLocationOfMurder = async (context: Context): Promise<Context> => {
   const model = new ChatOpenAI({
-    model: "o4-mini",
+    model: "gpt-4.1-mini",
   });
 
   const schema = z.object({

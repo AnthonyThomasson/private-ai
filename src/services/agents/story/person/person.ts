@@ -10,7 +10,7 @@ export const generatePersonFromDescription = async (
   description: string,
 ) => {
   const model = new ChatOpenAI({
-    model: "o4-mini",
+    model: "gpt-4.1-mini",
   });
 
   const schema = z.object({

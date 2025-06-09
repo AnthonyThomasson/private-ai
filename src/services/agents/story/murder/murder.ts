@@ -13,7 +13,7 @@ import { generateCluesFromMurder } from "../clue/generator";
 
 export const generateMurder = async () => {
   const model = new ChatOpenAI({
-    model: "o4-mini",
+    model: "gpt-4.1-mini",
   });
 
   const { type, location } = await getMurderSeed();
@@ -86,6 +86,7 @@ export const generateMurder = async () => {
       and(
         eq(people.murderId, murder.id),
         not(eq(people.id, victim.id)),
+        not(eq(people.id, perpetrator.id)),
         not(
           exists(
             db

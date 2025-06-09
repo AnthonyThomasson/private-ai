@@ -66,7 +66,7 @@ export const processMessage = async (
   const stream = new ReadableStream({
     async start(controller) {
       const model = new ChatOpenAI({
-        model: "o4-mini",
+        model: "gpt-4.1-mini",
         openAIApiKey: process.env.OPENAI_API_KEY,
         streaming: true,
         callbacks: [
