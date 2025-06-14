@@ -8,6 +8,8 @@ import { clueLinks } from "./clueLink";
 
 export type Person = InferSelectModel<typeof people> & {
   location: InferSelectModel<typeof locations>;
+  murder: InferSelectModel<typeof murders>;
+  clueLinks: InferSelectModel<typeof clueLinks>[];
 };
 export type NewPerson = InferInsertModel<typeof people>;
 export const people = sqliteTable("people", {

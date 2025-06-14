@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import MurderDetails from "../components/MurderDetails";
-import People from "@/components/People";
+import People from "@/components/people/People";
 import { db } from "@/db";
 import React from "react";
 
