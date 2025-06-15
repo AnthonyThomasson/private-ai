@@ -1,19 +1,19 @@
 import { db } from "@/db";
-import { people } from "@/db/models/people";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { people, Person } from "@/db/models/people";
+import {
+  ChatPromptTemplate,
+  MessagesPlaceholder,
+} from "@langchain/core/prompts";
 import { MemorySaver } from "@langchain/langgraph";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { ChatOpenAI } from "@langchain/openai";
 import { eq } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
+import { ChatMessageHistory } from "./memory/chatHistory";
 
-export const processMessage = async (
-  suspectId: number,
-  message: string,
-  onComplete: (message: string) => void,
-) => {
-  const suspect = await db.query.people.findFirst({
+export const processMessage = async (suspectId: number, message: string) => {
+  const suspect = (await db.query.people.findFirst({
     where: eq(people.id, suspectId),
     with: {
       murder: true,
@@ -24,11 +24,14 @@ export const processMessage = async (
         },
       },
     },
-  });
+  })) as Person;
 
   if (!suspect) {
     throw new Error("Suspect not found");
   }
+
+  const chatHistory = new ChatMessageHistory(suspect);
+  await chatHistory.addUserMessage(message);
 
   const promptTemplate = ChatPromptTemplate.fromMessages([
     [
@@ -42,10 +45,12 @@ export const processMessage = async (
         "utf8",
       ),
     ],
+    new MessagesPlaceholder("chat_history"),
     ["human", "{input}"],
   ]);
 
   const formattedPrompt = await promptTemplate.formatMessages({
+    chat_history: await chatHistory.getMessages(),
     input: message,
     clue_links: JSON.stringify(suspect.clueLinks),
     person_profile: JSON.stringify(suspect),
@@ -76,7 +81,7 @@ export const processMessage = async (
               controller.enqueue(encoder.encode(token));
             },
             async handleLLMEnd() {
-              onComplete(fullResponse);
+              chatHistory.addAIChatMessage(fullResponse);
               controller.close();
             },
             handleLLMError(err) {
@@ -94,12 +99,7 @@ export const processMessage = async (
         checkpointSaver: agentCheckpointer,
       });
 
-      await agent.invoke(
-        { messages: formattedPrompt },
-        {
-          configurable: { thread_id: suspectId.toString() },
-        },
-      );
+      await agent.invoke({ messages: formattedPrompt });
     },
   });
 

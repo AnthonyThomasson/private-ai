@@ -16,8 +16,6 @@ export function useAiChatter({
   const [isTyping, setIsTyping] = useState(false);
 
   const sendMessage = async (message: string) => {
-    console.log(person);
-
     const optimisticMessage = {
       id: Date.now(),
       content: message,

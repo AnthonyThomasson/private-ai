@@ -9,6 +9,7 @@ export const verifyOutputAgainstConstraints = async (
   murderId: number,
   output: string,
   constraints: string,
+  retryCount: number = 3,
 ) => {
   const murder = await db.query.murders.findFirst({
     where: eq(murders.id, murderId),
@@ -41,9 +42,12 @@ export const verifyOutputAgainstConstraints = async (
   const structuredLlm =
     model.withStructuredOutput<z.infer<typeof schema>>(schema);
 
-  return await callWithRetry(async () =>
-    structuredLlm.invoke(
-      `Verify if the output meets the following rules. Return 'true' if it does and 'false' if it does not. If it does not, return the reason why.
+  let result;
+  let count = 0;
+  do {
+    result = await callWithRetry(async () =>
+      structuredLlm.invoke(
+        `Verify if the output meets the following rules. Return 'true' if it does and 'false' if it does not. If it does not, return the reason why.
     
       OUTPUT: ${output}
 
@@ -51,7 +55,21 @@ export const verifyOutputAgainstConstraints = async (
 
       RULES: ${constraints}
       `,
-      { recursionLimit: 100 },
-    ),
-  );
+        { recursionLimit: 100 },
+      ),
+    );
+
+    if (!result.valid) {
+      return result;
+    }
+  } while (count++ < retryCount);
+
+  if (result) {
+    return result;
+  }
+
+  return {
+    valid: false,
+    reason: "Failed to verify output against constraints",
+  };
 };

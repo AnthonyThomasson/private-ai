@@ -42,11 +42,11 @@ export const getTools = (murderId: number) => {
         murderId,
         JSON.stringify(args.clue.relatedPeople),
         `Verify that newPersonDescription does not match any exiting people in the murder. That field
-        is to be used to generate a new person if the person does not exist. If they do exist they should
-        be tied to the clue wiht personId.
-        
-        EXISTING PEOPLE: ${JSON.stringify(murder.people)}
-        `,
+          is to be used to generate a new person if the person does not exist. If they do exist they should
+          be tied to the clue wiht personId.
+          
+          EXISTING PEOPLE: ${JSON.stringify(murder.people)}
+          `,
       );
       if (!result.valid) {
         console.log("❌ Invalid use of relatedPeople:");
