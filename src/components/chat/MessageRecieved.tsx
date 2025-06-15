@@ -14,8 +14,8 @@ export default function MessageRecieved({ message }: Props) {
     <div className="flex items-start gap-2.5">
       <Image
         className="w-8 h-8 rounded-full"
-        src="/example.png"
-        alt="Jese image"
+        src={`/${message.sender?.image}` || "/detective.png"}
+        alt={message.sender?.name || "Unknown"}
         width={32}
         height={32}
       />

@@ -30,7 +30,7 @@ export default function MessageSent({ message }: Props) {
       </div>
       <Image
         className="w-8 h-8 rounded-full"
-        src="/example.png"
+        src="/detective.png"
         alt="Jese image"
         width={32}
         height={32}
