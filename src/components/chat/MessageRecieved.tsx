@@ -4,8 +4,7 @@ import Image from "next/image";
 
 interface Props {
   message: Message & {
-    sender?: Person;
-    receiver?: Person;
+    suspect?: Person;
   };
 }
 
@@ -14,15 +13,15 @@ export default function MessageRecieved({ message }: Props) {
     <div className="flex items-start gap-2.5">
       <Image
         className="w-8 h-8 rounded-full"
-        src={`/${message.sender?.image}` || "/detective.png"}
-        alt={message.sender?.name || "Unknown"}
+        src={`/${message.suspect?.image}` || "/detective.png"}
+        alt={message.suspect?.name || "Unknown"}
         width={32}
         height={32}
       />
       <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-4 border-gray-200 bg-gray-100 rounded-e-xl rounded-es-xl dark:bg-gray-700">
         <div className="flex items-center space-x-2 rtl:space-x-reverse">
           <span className="text-sm font-semibold text-gray-900 dark:text-white">
-            {message.sender?.name || "Unknown"}
+            {message.suspect?.name || "Unknown"}
           </span>
           <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
             11:46

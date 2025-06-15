@@ -2,7 +2,7 @@
 
 import MessageRecieved from "./MessageRecieved";
 import MessageSent from "./MessageSent";
-import { Message } from "@/db/models/messages";
+import { ChatMessageRole, Message } from "@/db/models/messages";
 import MessageInput from "./MessageInput";
 import { useAiChatter } from "@/hooks/useAiChatter";
 import Image from "next/image";
@@ -66,7 +66,7 @@ export default function Chat({ person, initialMessages }: Props) {
 
         <div className="flex flex-col gap-5 mt-10">
           {messages.map((message: Message) => {
-            return message.senderId === person.id ? (
+            return message.role === ChatMessageRole.AI ? (
               <MessageRecieved message={message} key={message.id} />
             ) : (
               <MessageSent message={message} key={message.id} />

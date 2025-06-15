@@ -1,21 +1,18 @@
 "use server";
 
 import { db } from "@/db";
-import { messages } from "@/db/models/messages";
+import { ChatMessageRole, messages } from "@/db/models/messages";
 import { asc, eq, or } from "drizzle-orm";
 import { processMessage } from "./agents/suspect/suspect";
+import { people } from "@/db/models/people";
 
 export const getMessages = async (personId: number) => {
   return JSON.parse(
     JSON.stringify(
       await db.query.messages.findMany({
-        where: or(
-          eq(messages.senderId, personId),
-          eq(messages.receiverId, personId),
-        ),
+        where: or(eq(messages.suspectId, personId)),
         with: {
-          sender: true,
-          receiver: true,
+          suspect: true,
         },
         orderBy: [asc(messages.createdAt)],
       }),
@@ -23,38 +20,29 @@ export const getMessages = async (personId: number) => {
   );
 };
 
-export const sendMessage = async (
-  message: string,
-  senderId: number | null,
-  receiverId: number | null,
-) => {
-  return JSON.parse(
-    JSON.stringify(
-      await db.insert(messages).values({
-        content: message,
-        senderId,
-        receiverId,
-        createdAt: new Date().getTime(),
-        updatedAt: new Date().getTime(),
-      }),
-    ),
-  );
-};
-
 export const messageSuspect = async (suspectId: number, message: string) => {
+  const suspect = await db.query.people.findFirst({
+    where: eq(people.id, suspectId),
+  });
+  if (!suspect) {
+    throw new Error("Suspect not found");
+  }
+
   await db.insert(messages).values({
+    role: ChatMessageRole.USER,
     content: message,
-    senderId: null,
-    receiverId: suspectId,
+    suspectId: suspectId,
+    murderId: suspect?.murderId,
     createdAt: new Date().getTime(),
     updatedAt: new Date().getTime(),
   });
 
   return await processMessage(suspectId, message, async (response) => {
     await db.insert(messages).values({
+      role: ChatMessageRole.AI,
       content: response,
-      senderId: suspectId,
-      receiverId: null,
+      suspectId: suspectId,
+      murderId: suspect?.murderId,
       createdAt: new Date().getTime(),
       updatedAt: new Date().getTime(),
     });

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { getMessages } from "@/services/messages";
 import { Person } from "@/db/models/people";
-import { Message } from "@/db/models/messages";
+import { ChatMessageRole, Message } from "@/db/models/messages";
 
 interface UseMessageHandlerProps {
   person: Person;
@@ -16,13 +16,17 @@ export function useAiChatter({
   const [isTyping, setIsTyping] = useState(false);
 
   const sendMessage = async (message: string) => {
+    console.log(person);
+
     const optimisticMessage = {
       id: Date.now(),
       content: message,
-      senderId: null,
-      receiverId: person.id,
+      role: ChatMessageRole.USER,
+      suspectId: person.id,
+      murderId: person.murderId,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      suspect: person,
     };
     setMessages((prev) => [...prev, optimisticMessage as Message]);
 
@@ -41,10 +45,12 @@ export function useAiChatter({
       const streamingMessage = {
         id: Date.now(),
         content: "",
-        senderId: person.id,
-        receiverId: null,
+        role: ChatMessageRole.AI,
+        suspectId: person.id,
+        murderId: person.murderId,
         createdAt: Date.now(),
         updatedAt: Date.now(),
+        suspect: person,
       };
       setMessages((prev) => [...prev, streamingMessage as Message]);
 
