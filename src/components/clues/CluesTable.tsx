@@ -25,6 +25,7 @@ type ClueLinkWithRelations = {
 export default function CluesTable({
   initialClueLinks,
 }: {
+  murderId: number;
   initialClueLinks: ClueLinkWithRelations[];
 }) {
   const [showHidden, setShowHidden] = useState(false);

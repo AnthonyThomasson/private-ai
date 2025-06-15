@@ -1,8 +1,15 @@
 import { db } from "@/db";
+import { murders } from "@/db/models/murders";
 import Image from "next/image";
+import { eq } from "drizzle-orm";
 
-export default async function MurderDetails() {
+export default async function MurderDetails({
+  murderId,
+}: {
+  murderId: number;
+}) {
   const murder = await db.query.murders.findFirst({
+    where: eq(murders.id, murderId),
     with: {
       victim: true,
       perpetrator: true,
@@ -63,7 +70,7 @@ export default async function MurderDetails() {
       </div>
 
       <a
-        href="/clues"
+        href={`/murders/${murderId}/clues`}
         className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 w-20"
       >
         Clues

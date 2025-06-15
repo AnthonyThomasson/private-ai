@@ -2,9 +2,18 @@ import { db } from "@/db";
 import { clueLinks as clueLinksTable } from "@/db/models/clueLink";
 import { eq } from "drizzle-orm";
 import CluesTable from "@/components/clues/CluesTable";
+import { murders } from "@/db/models/murders";
 
-export default async function Clues() {
-  const murder = await db.query.murders.findFirst();
+export default async function Page({
+  params,
+}: {
+  params: { murderId: string };
+}) {
+  const murderId = (await params).murderId;
+
+  const murder = await db.query.murders.findFirst({
+    where: eq(murders.id, Number(murderId)),
+  });
   if (!murder) return <div>No murder found</div>;
 
   const currentClueLinks = await db.query.clueLinks.findMany({
@@ -15,5 +24,7 @@ export default async function Clues() {
     },
   });
 
-  return <CluesTable initialClueLinks={currentClueLinks} />;
+  return (
+    <CluesTable murderId={murder.id} initialClueLinks={currentClueLinks} />
+  );
 }

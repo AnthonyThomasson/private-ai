@@ -6,10 +6,11 @@ import Image from "next/image";
 import { useState } from "react";
 
 interface PeopleListProps {
+  murderId: number;
   people: (Person & { clueLinks: ClueLink[] })[];
 }
 
-export default function PeopleList({ people }: PeopleListProps) {
+export default function PeopleList({ murderId, people }: PeopleListProps) {
   const [showOnlyWithvisibleClues, setShowOnlyWithvisibleClues] =
     useState(true);
 
@@ -29,7 +30,7 @@ export default function PeopleList({ people }: PeopleListProps) {
         )
         .map((person) => (
           <a
-            href={`/person/${person.id}`}
+            href={`/murders/${murderId}/person/${person.id}`}
             key={person.id}
             className="inline-flex items-center gap-x-4 justify-center p-5 text-base font-medium text-gray-500 bg-gray-50 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:bg-gray-800 dark:hover:bg-gray-700 dark:hover:text-white"
           >
