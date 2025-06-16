@@ -3,6 +3,7 @@
 import { ClueLink } from "@/db/models/clueLink";
 import { Person } from "@/db/models/people";
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 
 interface PeopleListProps {
@@ -16,9 +17,14 @@ export default function PeopleList({ murderId, people }: PeopleListProps) {
 
   return (
     <div className="flex flex-col gap-y-4 p-5">
+      <Link href="/" className="w-full">
+        <button className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer">
+          Back to murders
+        </button>
+      </Link>
       <button
         onClick={() => setShowOnlyWithvisibleClues(!showOnlyWithvisibleClues)}
-        className="mb-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        className="mb-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer"
       >
         {showOnlyWithvisibleClues ? "Show All" : "Show Only No Clues"}
       </button>
