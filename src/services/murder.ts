@@ -6,13 +6,15 @@ import { people } from "@/db/models/people";
 import { clueLinks } from "@/db/models/clueLink";
 import { and, eq } from "drizzle-orm";
 import { murders } from "@/db/models/murders";
+import { locations } from "@/db/models/location";
 
 export const deleteMurder = async (murderId: number) => {
-  await db.delete(murders).where(eq(murders.id, murderId));
-  await db.delete(people).where(eq(people.murderId, murderId));
   await db.delete(messages).where(eq(messages.murderId, murderId));
-  await db.delete(clues).where(eq(clues.murderId, murderId));
   await db.delete(clueLinks).where(eq(clueLinks.murderId, murderId));
+  await db.delete(clues).where(eq(clues.murderId, murderId));
+  await db.delete(people).where(eq(people.murderId, murderId));
+  await db.delete(murders).where(eq(murders.id, murderId));
+  await db.delete(locations).where(eq(locations.murderId, murderId));
 };
 
 export const deleteChatHistory = async (

@@ -65,6 +65,7 @@ export const generatePersonFromDescription = async (
     .values({
       address: personDetails.address,
       description: personDetails.location,
+      murderId: murderId,
     })
     .returning();
 
