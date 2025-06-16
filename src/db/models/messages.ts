@@ -19,6 +19,7 @@ export const messages = sqliteTable("messages", {
   content: text("content").notNull(),
   murderId: int("murder_id").references(() => murders.id),
   suspectId: int("suspect_id").references(() => people.id),
+  userToken: text("user_token").notNull(),
 });
 export const messagesRelations = relations(messages, ({ one }) => ({
   murder: one(murders, {

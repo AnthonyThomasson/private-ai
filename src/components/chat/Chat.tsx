@@ -13,12 +13,14 @@ import { isPersonMurderer } from "@/services/people";
 interface Props {
   person: Person;
   initialMessages: Message[];
+  userToken: string;
 }
 
-export default function Chat({ person, initialMessages }: Props) {
+export default function Chat({ person, initialMessages, userToken }: Props) {
   const { messages, isTyping, sendMessage } = useAiChatter({
     person,
     initialMessages,
+    userToken,
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);

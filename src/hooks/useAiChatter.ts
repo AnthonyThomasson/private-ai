@@ -6,11 +6,13 @@ import { ChatMessageRole, Message } from "@/db/models/messages";
 interface UseMessageHandlerProps {
   person: Person;
   initialMessages: Message[];
+  userToken: string;
 }
 
 export function useAiChatter({
   person,
   initialMessages,
+  userToken,
 }: UseMessageHandlerProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isTyping, setIsTyping] = useState(false);
@@ -22,6 +24,7 @@ export function useAiChatter({
       role: ChatMessageRole.USER,
       suspectId: person.id,
       murderId: person.murderId,
+      userToken: userToken,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       suspect: person,
@@ -46,6 +49,7 @@ export function useAiChatter({
         role: ChatMessageRole.AI,
         suspectId: person.id,
         murderId: person.murderId,
+        userToken: userToken,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         suspect: person,
@@ -73,7 +77,7 @@ export function useAiChatter({
         }
       }
 
-      setMessages(await getMessages(person.id));
+      setMessages(await getMessages(person.id, userToken));
     } catch (error) {
       console.error("Failed to send message:", error);
       setMessages((prev) =>

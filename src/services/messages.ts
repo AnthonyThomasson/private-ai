@@ -1,19 +1,31 @@
 "use server";
 
 import { db } from "@/db";
-import { messages } from "@/db/models/messages";
-import { asc, eq, or } from "drizzle-orm";
+import { people, Person } from "@/db/models/people";
+import { and, eq } from "drizzle-orm";
 import { processMessage } from "./agents/suspect/suspect";
+import { messages } from "@/db/models/messages";
 
-export const getMessages = async (personId: number) => {
+export const getMessages = async (personId: number, userToken: string) => {
+  const person = (await db.query.people.findFirst({
+    where: eq(people.id, personId),
+  })) as Person;
+
+  if (!person) {
+    return [];
+  }
+
   return JSON.parse(
     JSON.stringify(
       await db.query.messages.findMany({
-        where: or(eq(messages.suspectId, personId)),
+        where: and(
+          eq(messages.suspectId, personId),
+          eq(messages.userToken, userToken),
+        ),
+        orderBy: messages.createdAt,
         with: {
           suspect: true,
         },
-        orderBy: [asc(messages.createdAt)],
       }),
     ),
   );

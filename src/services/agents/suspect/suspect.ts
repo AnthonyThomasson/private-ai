@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
 import { ChatMessageHistory } from "./memory/chatHistory";
+import { cookies } from "next/headers";
 
 export const processMessage = async (suspectId: number, message: string) => {
   const suspect = (await db.query.people.findFirst({
@@ -30,7 +31,12 @@ export const processMessage = async (suspectId: number, message: string) => {
     throw new Error("Suspect not found");
   }
 
-  const chatHistory = new ChatMessageHistory(suspect);
+  const userToken = (await cookies()).get("user_token")?.value;
+  if (!userToken) {
+    throw new Error("User token not found");
+  }
+
+  const chatHistory = new ChatMessageHistory(suspect, userToken);
   await chatHistory.addUserMessage(message);
 
   const promptTemplate = ChatPromptTemplate.fromMessages([

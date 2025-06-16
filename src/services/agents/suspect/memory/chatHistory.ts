@@ -5,7 +5,7 @@ import {
 } from "@langchain/core/messages";
 import { db } from "@/db"; // drizzle db client
 import { ChatMessageRole, messages } from "@/db/models/messages";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { BaseChatMessageHistory } from "@langchain/core/chat_history";
 import { Person } from "@/db/models/people";
 
@@ -18,15 +18,23 @@ export class ChatMessageHistory extends BaseChatMessageHistory {
   lc_graph_name = "ChatMessageHistory";
   lc_graph_description = "Chat message history";
 
-  constructor(public suspect: Person) {
-    super({ sessionId: `${suspect.id}-${suspect.murderId}` });
+  constructor(
+    public suspect: Person,
+    public userToken: string,
+  ) {
+    super({ sessionId: `${suspect.id}-${suspect.murderId}-${userToken}` });
   }
 
   async getMessages(): Promise<AIMessage[] | HumanMessage[] | SystemMessage[]> {
     const rows = await db
       .select()
       .from(messages)
-      .where(eq(messages.suspectId, this.suspect.id))
+      .where(
+        and(
+          eq(messages.suspectId, this.suspect.id),
+          eq(messages.userToken, this.userToken),
+        ),
+      )
       .orderBy(messages.createdAt);
 
     return rows.map((row) => {
@@ -45,6 +53,7 @@ export class ChatMessageHistory extends BaseChatMessageHistory {
       await db.insert(messages).values({
         suspectId: this.suspect.id,
         murderId: this.suspect.murderId,
+        userToken: this.userToken,
         role:
           message instanceof AIMessage
             ? ChatMessageRole.AI
