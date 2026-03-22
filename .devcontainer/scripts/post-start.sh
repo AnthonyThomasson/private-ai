@@ -33,4 +33,3 @@ rm -rf public/story/
 
 yarn install
 yarn db:push
-yarn db:seed
