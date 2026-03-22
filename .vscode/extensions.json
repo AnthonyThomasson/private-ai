@@ -1,0 +1,18 @@
+{
+  "recommendations": [
+    "anthropic.claude-code",
+    "ms-azuretools.vscode-docker",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "vitest.explorer",
+    "streetsidesoftware.code-spell-checker",
+    "bierner.markdown-mermaid",
+    "eamodio.gitlens",
+    "github.vscode-github-actions",
+    "GitHub.vscode-pull-request-github",
+    "qwtel.sqlite-viewer",
+    "bradlc.vscode-tailwindcss",
+    "stivo.tailwind-fold",
+    "csstools.postcss"
+  ]
+}

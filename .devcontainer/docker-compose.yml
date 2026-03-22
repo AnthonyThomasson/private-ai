@@ -5,6 +5,7 @@ services:
       - 4983:4983
     volumes:
       - ./../:/workspaces/private-ai
+      - ~/.claude:/root/.claude
       # Forward docker socket to allow docker commands to be run from within the container
       - /var/run/docker.sock:/var/run/docker.sock
       - devcontainer-zshhistory:/root/commandhistory/.zsh_history

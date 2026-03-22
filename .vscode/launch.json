@@ -1,0 +1,47 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run script",
+      "type": "node",
+      "request": "launch",
+      "program": "${file}",
+      "runtimeExecutable": "tsx",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**"
+      ]
+    },
+    {
+      "name": "Next.js: Server-side",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_OPTIONS": "--inspect"
+      },
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "Next.js: Client-side (Chrome)",
+      "type": "chrome",
+      "request": "attach",
+      "webRoot": "${workspaceFolder}",
+      "sourceMaps": true,
+      "trace": true
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Debug Next.js (Client + Server)",
+      "configurations": [
+        "Next.js: Server-side",
+        "Next.js: Client-side (Chrome)"
+      ]
+    }
+  ]
+}
