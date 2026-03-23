@@ -10,6 +10,7 @@ import { z } from "zod";
 import { createDeepAgent } from "deepagents";
 import { generateImageForMurder } from "../../painter/murder";
 import { generateImageForPerson } from "../../painter/person";
+import { getMurderSeed } from "./seed";
 
 const SYSTEM_PROMPT = `You are generating a murder mystery scenario.
 
@@ -466,11 +467,19 @@ export const generateMurder = async (maxRetries = 3) => {
       systemPrompt: SYSTEM_PROMPT,
     });
 
+    const seed = await getMurderSeed();
+    console.log(`🗿 Inspiration: ${seed.type} | ${seed.location}`);
+
     console.log(
       `🌱 Deep agent generating murder mystery... (attempt ${attempt}/${maxRetries})`,
     );
     await agent.invoke({
-      messages: [{ role: "user", content: "Generate a murder mystery." }],
+      messages: [
+        {
+          role: "user",
+          content: `Generate a murder mystery. Use this as inspiration: a ${seed.type} in ${seed.location}.`,
+        },
+      ],
     });
 
     const murderId = getMurderId();
