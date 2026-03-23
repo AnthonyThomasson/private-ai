@@ -167,7 +167,8 @@ Map the narrative error to what needs to change in the data.
 - Never change names, graph structure, or visibility flags — those are already validated structurally
 - Never set a motive on anyone other than the perpetrator
 - The perpetrator's motive must be specific: name the relationship, the secret, or the concrete reason — not just "greed" or "jealousy"
-- Stop after making one coherent fix. The narrative review will re-run automatically.
+- Make your change and stop. Do not create new people or clues unless the narrative error explicitly requires them.
+- After one update (motive, clue description, or relation), produce a final response. Do not make additional tool calls.
 `;
 
 const FIX_SYSTEM_PROMPT = `You are repairing a murder mystery chain that failed validation.
@@ -184,13 +185,16 @@ Map the error to what is broken in the data.
 - Prefer updating existing data over creating new entities
 - Only use create_person / create_clue if the fix genuinely requires a new intermediate suspect or red herring (depth extension, dead-end branch)
 - Do NOT rewrite the story. Do NOT change names. Do NOT touch unaffected clues.
+- Batch your fix: call get_chain_state once, then make your changes, then STOP. Do not rewire or add links beyond what is strictly needed for this one fix.
+- For "perpetrator too close" fixes: create 1 intermediate person, 1 clue, and 2–4 clue links to insert them in the path. Do not modify existing links that are unrelated.
+- After executing your fix, produce a final response. Do not make additional tool calls.
 
 ## Rules (non-negotiable)
 - Never write the perpetrator's name in any clue description or relation text
 - Never mark a bridge clue, dead-end clue, or perpetrator clue as visible — only mark the 1–2 initial crime-scene clue links
 - A valid chain requires: ≥2 intermediate suspects between crime scene and perpetrator, AND at least one initial suspect that does NOT reach the perpetrator
 - The victim must not appear in any clue link
-- Stop after making one coherent fix. The validation will re-run automatically.
+- The validation will re-run automatically after your fix.
 `;
 
 const buildTools = () => {
@@ -1083,7 +1087,11 @@ const cleanupMurder = async (murderId: number) => {
   await db.delete(murders).where(eq(murders.id, murderId));
 };
 
-export const generateMurder = async (maxRetries = 3, maxFixAttempts = 2) => {
+export const generateMurder = async (
+  maxRetries = 3,
+  maxFixAttempts = 2,
+  maxFixRecursionLimit = 16,
+) => {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const { tools, getMurderId } = buildTools();
 
@@ -1132,14 +1140,32 @@ export const generateMurder = async (maxRetries = 3, maxFixAttempts = 2) => {
           model: "openai:o4-mini",
           systemPrompt: FIX_SYSTEM_PROMPT,
         });
-        await fixAgent.invoke({
-          messages: [
+        try {
+          await fixAgent.invoke(
             {
-              role: "user",
-              content: `Validation failed: "${validation.reason}". Fix this and only this problem.`,
+              messages: [
+                {
+                  role: "user",
+                  content: `Validation failed: "${validation.reason}". Fix this and only this problem.`,
+                },
+              ],
             },
-          ],
-        });
+            { recursionLimit: maxFixRecursionLimit },
+          );
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (
+            msg.includes("recursion") ||
+            msg.includes("recursion_limit") ||
+            msg.includes("GRAPH_RECURSION")
+          ) {
+            console.warn(
+              `⚠️  Fix attempt ${fix}: hit recursion limit — treating as fix incomplete`,
+            );
+          } else {
+            throw err;
+          }
+        }
         murder = await db.query.murders.findFirst({
           where: eq(murders.id, murderId),
         });
@@ -1186,14 +1212,32 @@ export const generateMurder = async (maxRetries = 3, maxFixAttempts = 2) => {
           model: "openai:o4-mini",
           systemPrompt: NARRATIVE_FIX_SYSTEM_PROMPT,
         });
-        await narrativeFixAgent.invoke({
-          messages: [
+        try {
+          await narrativeFixAgent.invoke(
             {
-              role: "user",
-              content: `Narrative review failed: "${narrative.reason}". Fix this and only this problem.`,
+              messages: [
+                {
+                  role: "user",
+                  content: `Narrative review failed: "${narrative.reason}". Fix this and only this problem.`,
+                },
+              ],
             },
-          ],
-        });
+            { recursionLimit: maxFixRecursionLimit },
+          );
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (
+            msg.includes("recursion") ||
+            msg.includes("recursion_limit") ||
+            msg.includes("GRAPH_RECURSION")
+          ) {
+            console.warn(
+              `⚠️  Narrative fix attempt ${fix}: hit recursion limit — treating as fix incomplete`,
+            );
+          } else {
+            throw err;
+          }
+        }
         narrative = await verifyNarrative(murderId);
         if (narrative.valid) {
           narrativeFixed = true;
