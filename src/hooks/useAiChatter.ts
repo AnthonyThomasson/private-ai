@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { getMessages } from "@/services/messages";
 import { Person } from "@/db/models/people";
 import { ChatMessageRole, Message } from "@/db/models/messages";
@@ -14,6 +15,7 @@ export function useAiChatter({
   initialMessages,
   userToken,
 }: UseMessageHandlerProps) {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isTyping, setIsTyping] = useState(false);
 
@@ -78,6 +80,7 @@ export function useAiChatter({
       }
 
       setMessages(await getMessages(person.id, userToken));
+      router.refresh();
     } catch (error) {
       console.error("Failed to send message:", error);
       setMessages((prev) =>

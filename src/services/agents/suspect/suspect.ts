@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { people, Person } from "@/db/models/people";
+import { clueLinks } from "@/db/models/clueLink";
 import { tool } from "@langchain/core/tools";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -12,7 +13,7 @@ const buildSystemPrompt = (suspect: Person, isPerpetrator: boolean) => {
   const clueContext = suspect.clueLinks
     .map((link) => {
       const clue = (link as { clue?: { description?: string } }).clue;
-      return `- Clue: "${clue?.description ?? "unknown"}" | What you know: "${link.description}"`;
+      return `- [CLUE LINK ID: ${link.id}] Clue: "${clue?.description ?? "unknown"}" | What you know: "${link.description}"`;
     })
     .join("\n");
 
@@ -45,6 +46,7 @@ BEFORE COMPOSING YOUR RESPONSE:
 3. Ensure your answer is consistent with anything you've said before in this conversation.
 4. Reference your current location naturally when it fits (e.g., glancing at objects around you, the environment).
 5. After writing your response, call update_stress once to set your new stress level.
+6. If your response discloses information from one of your clue connections above, call reveal_clue_link with that clue link's ID. Only reveal when the question is directly relevant AND your stress is above 30, OR when you are directly and accurately asked about that specific clue. Reveal at most one clue link per response.
 
 STRESS UPDATE RULES:
 - Increase stress if the question directly touched one of your clue connections, mentioned real evidence, or accused you of something true.
@@ -112,11 +114,31 @@ export const processMessage = async (suspectId: number, message: string) => {
     },
   );
 
+  const revealClueLink = tool(
+    async ({ clueLinkId }: { clueLinkId: number }) => {
+      await db
+        .update(clueLinks)
+        .set({ isVisible: 1 })
+        .where(eq(clueLinks.id, clueLinkId));
+      return `clue link ${clueLinkId} revealed`;
+    },
+    {
+      name: "reveal_clue_link",
+      description:
+        "Call this when you choose to disclose information from one of your clue connections. Pass the ID of the clue link you are revealing.",
+      schema: z.object({
+        clueLinkId: z
+          .number()
+          .describe("The ID of the clue link being revealed"),
+      }),
+    },
+  );
+
   const history = await chatHistory.getMessages();
 
   const agent = createDeepAgent({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tools: [updateStress] as any,
+    tools: [updateStress, revealClueLink] as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     model: new ChatOpenAI({ model: "gpt-4.1-mini" }) as any,
     systemPrompt: buildSystemPrompt(suspect, isPerpetrator),
