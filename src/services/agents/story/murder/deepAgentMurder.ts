@@ -6,11 +6,11 @@ import { murders } from "@/db/models/murders";
 import { people } from "@/db/models/people";
 import { tool } from "@langchain/core/tools";
 import { ChatOpenAI } from "@langchain/openai";
-import { eq, count } from "drizzle-orm";
+import { createDeepAgent } from "deepagents";
+import { count, eq } from "drizzle-orm";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { z } from "zod";
-import { createDeepAgent } from "deepagents";
 import { generateImageForMurder } from "../../painter/murder";
 import { generateImageForPerson } from "../../painter/person";
 import { getMurderSeed } from "./seed";
@@ -1104,7 +1104,7 @@ export const generateMurder = async (
 
     const seed = await getMurderSeed();
     console.log(
-      `🗿 Inspiration: ${seed.type} | ${seed.location} | ${seed.era} | ${seed.tone} | ${seed.socialSetting}`,
+      `🗿 Inspiration: ${seed.type} | ${seed.location} | ${seed.era} | ${seed.motiveCategory}`,
     );
 
     console.log(
@@ -1114,17 +1114,12 @@ export const generateMurder = async (
       messages: [
         {
           role: "user",
-          content: `Generate a murder mystery. Use this as inspiration: a ${seed.type} in ${seed.location}. Era: ${seed.era}. Tone: ${seed.tone}. Setting: ${seed.socialSetting}. Motive inspiration (category only): ${seed.motiveCategory}. The actual motive must be specific and grounded in the story.`,
+          content: `Generate a murder mystery. Use this as inspiration: a ${seed.type} in ${seed.location}. Era: ${seed.era}. Motive inspiration (category only): ${seed.motiveCategory}. The actual motive must be specific and grounded in the story.`,
         },
       ],
     });
 
     const murderId = getMurderId();
-    await db
-      .update(murders)
-      .set({ responseStyle: seed.responseStyle })
-      .where(eq(murders.id, murderId));
-
     let murder = await db.query.murders.findFirst({
       where: eq(murders.id, murderId),
     });

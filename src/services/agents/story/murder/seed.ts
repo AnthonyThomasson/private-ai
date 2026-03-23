@@ -6,10 +6,7 @@ type Context = {
   location: string | null;
   type: string | null;
   era: string | null;
-  tone: string | null;
-  socialSetting: string | null;
   motiveCategory: string | null;
-  responseStyle: string;
 };
 
 const getTypeOfMurder = async (context: Context): Promise<Context> => {
@@ -87,47 +84,9 @@ const getEra = async (context: Context): Promise<Context> => {
   const structuredLlm =
     model.withStructuredOutput<z.infer<typeof schema>>(schema);
   const result = await structuredLlm.invoke(
-    `Generate a list of 10 distinct time periods or eras for a murder mystery (e.g. 1920s, Victorian London, 1970s, modern day). Each in no more than 5 words.`,
+    `Generate a list of 20 distinct time periods or eras for a murder mystery (e.g. 1920s, Victorian London, 1970s, modern day). Each in no more than 5 words.`,
   );
   context.era = pickRandom(result.eras);
-  return context;
-};
-
-const getTone = async (context: Context): Promise<Context> => {
-  const model = new ChatOpenAI({ model: "gpt-4.1-mini" });
-  const schema = z.object({
-    tones: z.array(
-      z
-        .string()
-        .describe(
-          "A narrative tone for a murder mystery, in no more than 10 words",
-        ),
-    ),
-  });
-  const structuredLlm =
-    model.withStructuredOutput<z.infer<typeof schema>>(schema);
-  const result = await structuredLlm.invoke(
-    `Generate a list of 10 narrative tones for a murder mystery (e.g. dark noir, cozy mystery, psychological thriller, procedural). Each in no more than 5 words.`,
-  );
-  context.tone = pickRandom(result.tones);
-  return context;
-};
-
-const getSocialSetting = async (context: Context): Promise<Context> => {
-  const model = new ChatOpenAI({ model: "gpt-4.1-mini" });
-  const schema = z.object({
-    settings: z.array(
-      z
-        .string()
-        .describe("A social milieu or setting, in no more than 10 words"),
-    ),
-  });
-  const structuredLlm =
-    model.withStructuredOutput<z.infer<typeof schema>>(schema);
-  const result = await structuredLlm.invoke(
-    `Generate a list of 10 social milieus for a murder mystery (e.g. high society, small town, corporate, family dynasty, academic). Each in no more than 5 words.`,
-  );
-  context.socialSetting = pickRandom(result.settings);
   return context;
 };
 
@@ -141,29 +100,11 @@ const getMotiveCategory = async (context: Context): Promise<Context> => {
   const structuredLlm =
     model.withStructuredOutput<z.infer<typeof schema>>(schema);
   const result = await structuredLlm.invoke(
-    `Generate a list of 10 motive categories for murder mysteries (e.g. inheritance, blackmail, jealousy, revenge, silencing witness, financial fraud). Each in no more than 5 words.`,
+    `Generate a list of 20 motive categories for murder mysteries (e.g. inheritance, blackmail, jealousy, revenge, silencing witness, financial fraud). Each in no more than 5 words.`,
   );
   context.motiveCategory = pickRandom(result.categories);
   return context;
 };
-
-const RESPONSE_STYLE_MODIFIERS = [
-  "Keep responses terse and evasive. Answer in fragments.",
-  "Elaborate when asked. Tend to over-explain.",
-  "Use dry humor and sarcasm when deflecting.",
-  "Respond formally, as if being deposed.",
-  "Speak colloquially. Use contractions and filler words.",
-  "Be curt and dismissive. Give minimal answers.",
-  "Rambling and nervous. Tangents when stressed.",
-  "Guarded but polite. Deflect with questions.",
-  "Cold and measured. Choose words carefully.",
-  "Emotional and defensive. React strongly to accusations.",
-  "Sarcastic and witty. Deflect with jokes.",
-  "Evasive and vague. Never give a straight answer.",
-  "Overly helpful. Volunteer too much, then backtrack.",
-  "Prickly and short-tempered. Snap when pressed.",
-  "Meek and apologetic. Defer and downplay.",
-];
 
 function shuffle<T>(array: T[]): T[] {
   for (let i = array.length - 1; i > 0; i--) {
@@ -199,10 +140,7 @@ export const getMurderSeed = async () => {
     location: null,
     type: null,
     era: null,
-    tone: null,
-    socialSetting: null,
     motiveCategory: null,
-    responseStyle: "",
   };
 
   let maxAttempts = 10;
@@ -213,16 +151,9 @@ export const getMurderSeed = async () => {
     maxAttempts--;
   } while (!(await isItPossible(context)) && maxAttempts > 0);
 
-  for (const fn of shuffle([
-    getEra,
-    getTone,
-    getSocialSetting,
-    getMotiveCategory,
-  ])) {
+  for (const fn of shuffle([getEra, getMotiveCategory])) {
     context = await fn(context);
   }
-
-  context.responseStyle = pickRandom(RESPONSE_STYLE_MODIFIERS);
 
   return context;
 };

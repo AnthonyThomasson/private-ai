@@ -11,7 +11,6 @@ export const murders = sqliteTable("murders", {
   locationId: int("location_id").references(() => locations.id),
   victimId: int("victim_id"),
   perpetratorId: int("perpetrator_id"),
-  responseStyle: text("response_style"),
 });
 
 export const murdersRelations = relations(murders, ({ one, many }) => ({
