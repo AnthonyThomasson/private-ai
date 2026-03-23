@@ -20,37 +20,61 @@ const SYSTEM_PROMPT = `You are generating a murder mystery scenario. Use write_t
 4. Call create_person for the PERPETRATOR (the actual killer — keep secret, clues should only allude to them)
 5. Call set_victim_and_perpetrator
 
-## How Clue Chains Work
-A clue chain is a trail of evidence. Each clue is an objective, observable fact — physical evidence,
-a document, or a witness account of something they saw (not an interrogation result). Clues link to
-one or more people. A person linked to a clue has some connection to it: they were near it, they own
-something related to it, they were witnessed somewhere relevant, etc.
+## How Clue Discovery Works
+Clues are ONLY discovered through suspect interviews — the player cannot find them any other way.
 
-Clues do NOT have to form a single straight line. They can branch, contradict each other, or lead
-nowhere. Some clues point toward the real perpetrator; others may point toward someone innocent.
+Each clue has one or more people linked to it via a "relation". This relation is the information that
+person will reveal when the player interviews them. The game works like this:
+
+1. The player inspects the crime scene and sees visible clues (physical evidence)
+2. Each visible clue names or implies a person to interview
+3. The player interviews that person; the person's "relation" to the clue is what they reveal
+4. That revelation points to the next clue or person in the chain
+5. This continues until the player has enough evidence to identify the perpetrator
+
+For this to work, EVERY clue must:
+- Be linked to at least one real person who can be interviewed about it
+- Have a "relation" that sounds like natural knowledge a person would share in conversation
+  (e.g. "saw someone leaving the building that night", "owns the item found at the scene",
+  "overheard a heated argument between the victim and someone matching the perpetrator's description")
+- Have a description that looks genuinely suspicious from the outside — never self-labeling
+  as unimportant, unrelated, or a dead end
+
+Dead ends are discovered THROUGH conversation, not FROM the clue itself:
+- A dead-end clue looks exactly as suspicious as a real clue
+- The person linked to it has a plausible "relation" — they know something believable, but it just
+  doesn't connect further to the crime when followed up
+- Only after the player talks to them does the trail go cold
 
 ## Generating Clues
 Create between 4 and 7 clues total. Design the full set so that:
 
-- **Some clues form a genuine trail** leading toward the perpetrator — but never naming them outright.
-  The evidence should only become damning when several clues are connected together.
+- **Some clues form a genuine trail** toward the perpetrator — each linked person's "relation"
+  naturally points the player toward the next clue or suspect. The evidence only becomes damning
+  when several clues are connected together. The perpetrator must never be directly named.
 
-- **Include 1–2 red herring suspects** — real people in the story who appear suspicious (they have
-  motive or opportunity) but are ultimately innocent. Create clues that make them look guilty. These
-  clues should be plausible but ultimately not connect to the actual crime.
+- **Include 1–2 red herring suspects** — people who appear deeply suspicious (motive, opportunity,
+  conflicting alibis) but are ultimately innocent. Their linked clues should look exactly as damning
+  as real evidence. The player only discovers the truth through exhaustive questioning.
 
-- **Include at least one dead-end clue** — a lead that seems important but goes nowhere. It might
-  reference a person with no further connections, or point toward something unrelated to the murder.
+- **Include at least one plausible-looking dead end** — a clue that appears significant but whose
+  linked person, when interviewed, reveals information that doesn't connect to the actual crime.
+  The clue description must not hint at this; it should look like a real lead.
 
-- **Mark crime scene clues as visible** — any clue representing physical evidence present at the
-  crime scene should be marked visible with mark_clue_visible. Other clues start hidden.
+- **Mark crime scene clues as visible** — physical evidence present at the initial crime scene
+  should be marked visible with mark_clue_visible. All other clues start hidden and are only
+  unlocked through interviews.
 
 For each clue: first create any new people it references with create_person, then call create_clue.
 
 ## Rules
-- Clues are observable facts only — never interrogation results or opinions
+- clue.description = the observable fact the player sees. Always looks suspicious. Never reveals
+  whether it leads anywhere.
+- clueLink.relation = what that person knows and will reveal in conversation. Must sound natural,
+  specific, and like something a real person would say — not a formal clue summary.
+- Clues are objective facts only — never interrogation results, never opinions
 - All person names must be unique
-- The real perpetrator must never be directly named in any clue
+- The real perpetrator must never be directly named in any clue or relation
 - Keep the full cast of people narratively coherent with each other and the crime scene
 `;
 
@@ -74,7 +98,8 @@ const buildTools = () => {
     },
     {
       name: "create_murder_scene",
-      description: "Create the murder scene with a crime description. Call this first.",
+      description:
+        "Create the murder scene with a crime description. Call this first.",
       schema: z.object({
         description: z
           .string()
@@ -140,7 +165,8 @@ const buildTools = () => {
     },
     {
       name: "create_person",
-      description: "Create a person in the murder investigation. Returns personId.",
+      description:
+        "Create a person in the murder investigation. Returns personId.",
       schema: z.object({
         name: z.string().describe("Full name of the person"),
         age: z.number().describe("Age of the person"),
@@ -152,7 +178,9 @@ const buildTools = () => {
         personality: z
           .string()
           .describe("Comma-separated single-word personality traits"),
-        address: z.string().describe("The address where this person lives or works"),
+        address: z
+          .string()
+          .describe("The address where this person lives or works"),
         locationDescription: z
           .string()
           .describe(
@@ -223,7 +251,12 @@ const buildTools = () => {
       for (const { personId, relation } of relatedPeople) {
         const [link] = await db
           .insert(clueLinks)
-          .values({ murderId: mId, clueId: clue.id, personId, description: relation })
+          .values({
+            murderId: mId,
+            clueId: clue.id,
+            personId,
+            description: relation,
+          })
           .returning();
         insertedLinks.push({ clueLinkId: link.id, personId });
       }
@@ -236,7 +269,9 @@ const buildTools = () => {
       description:
         "Create a clue and link it to people already created. All personIds must exist before calling this.",
       schema: z.object({
-        description: z.string().describe("Objective, factual description of the clue"),
+        description: z
+          .string()
+          .describe("Objective, factual description of the clue"),
         relatedPeople: z
           .array(
             z.object({
@@ -270,13 +305,21 @@ const buildTools = () => {
       schema: z.object({
         clueLinkId: z
           .number()
-          .describe("The clueLinkId returned by create_clue to mark as visible"),
+          .describe(
+            "The clueLinkId returned by create_clue to mark as visible",
+          ),
       }),
     },
   );
 
   return {
-    tools: [createMurderScene, createPerson, setVictimAndPerpetrator, createClue, markClueVisible],
+    tools: [
+      createMurderScene,
+      createPerson,
+      setVictimAndPerpetrator,
+      createClue,
+      markClueVisible,
+    ],
     getMurderId,
   };
 };
