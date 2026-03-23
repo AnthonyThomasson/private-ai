@@ -16,7 +16,7 @@ const SYSTEM_PROMPT = `You are generating a murder mystery scenario. Use write_t
 ## Setup
 1. Invent a realistic murder: a specific type (poisoning, stabbing, etc.) and location on Earth
 2. Call create_murder_scene with a 1-sentence crime scene description (cause of death, no sci-fi, no names)
-3. Call create_person for the VICTIM — a person found at the crime scene
+3. Call create_person for the VICTIM — a person found dead at the crime scene (DEAD — cannot be interviewed, do not create clue links for them)
 4. Call create_person for the PERPETRATOR (the actual killer — keep secret, clues should only allude to them)
 5. Call set_victim_and_perpetrator
 
@@ -40,9 +40,10 @@ This is how new suspects unlock. If a clue only links to one person, no new susp
 
 ### Crime-scene clues (VISIBLE from the start)
 - Physical evidence at the scene that immediately points to 1–2 initial suspects
-- Link each to ONE person (the first suspect to interview)
+- Link each to ONE living suspect (NOT the victim — the victim is dead and cannot be interviewed)
 - Mark each visible with mark_clue_visible
 - The linked person's relation = what they know and will share when interviewed
+- The victim's connections belong in the clue DESCRIPTION itself, not in a clue link
 
 ### Bridge clues (HIDDEN — unlocked through interviews)
 - Each bridge clue MUST link to BOTH: (a) the informant, AND (b) the next suspect
