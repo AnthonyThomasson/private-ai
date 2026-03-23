@@ -58,9 +58,13 @@ This is how new suspects unlock. If a clue only links to one person, no new susp
 - Link each to ONE living suspect (NOT the victim — the victim is dead, excluded from sidebar)
   ❌ WRONG: linked to the victim — useless, victim cannot be interviewed
   ✅ RIGHT: linked to a living suspect who was at or near the scene
-- Mark each visible with mark_clue_visible
+- Mark each visible with mark_clue_visible — ONLY call mark_clue_visible on these 1–2 initial crime-scene clue links
 - The linked person's relation = what they know and will share when interviewed
 - Mention the victim in the clue DESCRIPTION if needed, but never in a clue link
+
+⚠️  mark_clue_visible MUST only be called for initial crime-scene clues (1–2 total).
+    NEVER call mark_clue_visible on bridge clues, the perpetrator clue, or dead-end clues.
+    Calling mark_clue_visible on the wrong links will immediately expose the perpetrator and break the game.
 
 ### Bridge clues (HIDDEN — unlocked through interviews)
 - Each bridge clue MUST link to BOTH: (a) the informant, AND (b) the next suspect
@@ -99,7 +103,9 @@ Verify every rule is met before stopping:
 - [ ] No clue links on the victim
 - [ ] Every non-initial suspect has a bridge clue that links them to their predecessor
 - [ ] The perpetrator's clue is linked to the second-to-last suspect
-- [ ] Crime-scene clues are marked visible with mark_clue_visible
+- [ ] ONLY 1–2 crime-scene clue links were marked visible with mark_clue_visible
+- [ ] The perpetrator's clue links are NOT marked visible
+- [ ] Bridge clues are NOT marked visible
 - [ ] Chain depth from crime scene to perpetrator is ≥ 2 suspects
 
 ## Rules
@@ -393,6 +399,14 @@ const validateChain = async (
     return {
       valid: false,
       reason: "No initial suspects — all visible clue links are on the victim",
+    };
+  }
+
+  // Perpetrator must NOT be visible at the start
+  if (visiblePersonIds.has(perpetratorId)) {
+    return {
+      valid: false,
+      reason: "Perpetrator is visible at the crime scene — must be hidden",
     };
   }
 
