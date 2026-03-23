@@ -5,7 +5,10 @@ import { locations } from "@/db/models/location";
 import { murders } from "@/db/models/murders";
 import { people } from "@/db/models/people";
 import { tool } from "@langchain/core/tools";
+import { ChatOpenAI } from "@langchain/openai";
 import { eq, count } from "drizzle-orm";
+import { readFileSync } from "fs";
+import { join } from "path";
 import { z } from "zod";
 import { createDeepAgent } from "deepagents";
 import { generateImageForMurder } from "../../painter/murder";
@@ -141,6 +144,30 @@ Verify every rule is met before stopping:
   The perpetrator's personId is used to link them to the final clue — their NAME must stay out of all text.
 - Keep the full cast of people narratively coherent with each other and the crime scene.
 - Create 5–7 clues total (1–2 visible crime-scene clues, 2–3 hidden bridge clues, 1 dead-end clue, 1 perpetrator clue).
+`;
+
+const NARRATIVE_FIX_SYSTEM_PROMPT = `You are repairing a murder mystery that failed narrative coherence review.
+
+You will be given the specific narrative problem. Your ONLY job is to make the minimal change that fixes it.
+
+## Step 1: Always call get_chain_state first
+Read the current state of all people, clues, and clue links before making any changes.
+
+## Step 2: Identify the exact problem
+Map the narrative error to what needs to change in the data.
+
+## Step 3: Fix it minimally — in order of preference
+1. Use update_person_motive to strengthen or rewrite the perpetrator's motive if it is too vague or not connected to the victim/crime scene
+2. Use update_clue_description to fix a clue that contradicts the cause of death or contains anachronistic/impossible details
+3. Use update_clue_relation to fix a relation text that is implausible for the character's role, contradicts another relation, or reveals the perpetrator's identity via unique role paraphrase
+4. Only create new people or clues if the narrative fix genuinely requires a new character or evidence element
+
+## Rules (non-negotiable)
+- Never write the perpetrator's name in any clue description or relation text
+- Never change names, graph structure, or visibility flags — those are already validated structurally
+- Never set a motive on anyone other than the perpetrator
+- The perpetrator's motive must be specific: name the relationship, the secret, or the concrete reason — not just "greed" or "jealousy"
+- Stop after making one coherent fix. The narrative review will re-run automatically.
 `;
 
 const FIX_SYSTEM_PROMPT = `You are repairing a murder mystery chain that failed validation.
@@ -490,8 +517,9 @@ const buildFixTools = (murderId: number) => {
       schema: z.object({
         clueLinkId: z.number().describe("The clueLinkId to update"),
         visible: z
-          .boolean()
-          .describe("true = visible at crime scene, false = hidden"),
+          .union([z.boolean(), z.number()])
+          .transform((v) => Boolean(v))
+          .describe("true/1 = visible at crime scene, false/0 = hidden"),
       }),
     },
   );
@@ -773,6 +801,33 @@ const buildFixTools = (murderId: number) => {
     },
   );
 
+  const updatePersonMotive = tool(
+    async ({ personId, motive }: { personId: number; motive: string }) => {
+      const person = await db.query.people.findFirst({
+        where: eq(people.id, personId),
+      });
+      if (!person) {
+        return `RETRY: personId ${personId} does not exist.`;
+      }
+      await db.update(people).set({ motive }).where(eq(people.id, personId));
+      console.log(`✏️  Person ${personId} motive updated`);
+      return "success";
+    },
+    {
+      name: "update_person_motive",
+      description:
+        "Rewrite the perpetrator's motive. Only use on the perpetrator — never set a motive on victims or witnesses.",
+      schema: z.object({
+        personId: z.number().describe("The personId of the perpetrator"),
+        motive: z
+          .string()
+          .describe(
+            "The new, specific motive — must name the relationship, secret, or concrete reason. Must not be generic.",
+          ),
+      }),
+    },
+  );
+
   return [
     getChainState,
     setClueLinkVisible,
@@ -782,6 +837,7 @@ const buildFixTools = (murderId: number) => {
     addClueLink,
     createPerson,
     createClue,
+    updatePersonMotive,
   ];
 };
 
@@ -932,6 +988,87 @@ const validateChain = async (
   return { valid: true, depth };
 };
 
+const NARRATIVE_CONSTRAINTS = readFileSync(
+  join(__dirname, "prompt", "narrative_constraints.md"),
+  "utf-8",
+);
+
+const verifyNarrative = async (
+  murderId: number,
+): Promise<{ valid: boolean; reason?: string }> => {
+  const murder = await db.query.murders.findFirst({
+    where: eq(murders.id, murderId),
+  });
+  const allPeople = await db.query.people.findMany({
+    where: eq(people.murderId, murderId),
+  });
+  const allClues = await db.query.clues.findMany({
+    where: eq(clues.murderId, murderId),
+  });
+  const allLinks = await db.query.clueLinks.findMany({
+    where: eq(clueLinks.murderId, murderId),
+  });
+
+  const state = JSON.stringify({
+    murder: {
+      id: murder?.id,
+      description: murder?.description,
+      victimId: murder?.victimId,
+      perpetratorId: murder?.perpetratorId,
+    },
+    people: allPeople.map((p) => ({
+      personId: p.id,
+      name: p.name,
+      age: p.age,
+      gender: p.gender,
+      occupation: p.occupation,
+      description: p.description,
+      personality: p.personality,
+      motive: p.motive,
+    })),
+    clues: allClues.map((c) => ({
+      clueId: c.id,
+      description: c.description,
+    })),
+    clueLinks: allLinks.map((l) => ({
+      clueLinkId: l.id,
+      clueId: l.clueId,
+      personId: l.personId,
+      relation: l.description,
+      isVisible: l.isVisible,
+    })),
+  });
+
+  const model = new ChatOpenAI({ model: "o4-mini" });
+  const schema = z.object({
+    valid: z
+      .boolean()
+      .describe(
+        "true if the narrative is coherent and meets all criteria, false otherwise",
+      ),
+    reason: z
+      .string()
+      .describe(
+        "If invalid, the specific first violation found. If valid, return an empty string.",
+      ),
+  });
+  const structuredLlm =
+    model.withStructuredOutput<z.infer<typeof schema>>(schema);
+
+  const result = await structuredLlm.invoke(
+    `Review this murder mystery for narrative coherence. Return valid=true only if all criteria are met.
+
+MURDER STATE:
+${state}
+
+CRITERIA:
+${NARRATIVE_CONSTRAINTS}`,
+    { recursionLimit: 100 },
+  );
+
+  return result;
+};
+
 const cleanupMurder = async (murderId: number) => {
   // Nullify FK references on murder first to avoid circular FK violations
   await db
@@ -1035,6 +1172,49 @@ export const generateMurder = async (maxRetries = 3, maxFixAttempts = 2) => {
     console.log(
       `✅ Chain validated — perpetrator is ${perpetratorDepth} step(s) from crime scene`,
     );
+
+    let narrative = await verifyNarrative(murderId);
+    if (!narrative.valid) {
+      let narrativeFixed = false;
+      for (let fix = 1; fix <= maxFixAttempts; fix++) {
+        console.warn(
+          `🔧 Narrative fix attempt ${fix}/${maxFixAttempts}: ${narrative.reason}`,
+        );
+        const narrativeFixAgent = createDeepAgent({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          tools: buildFixTools(murderId) as any,
+          model: "openai:o4-mini",
+          systemPrompt: NARRATIVE_FIX_SYSTEM_PROMPT,
+        });
+        await narrativeFixAgent.invoke({
+          messages: [
+            {
+              role: "user",
+              content: `Narrative review failed: "${narrative.reason}". Fix this and only this problem.`,
+            },
+          ],
+        });
+        narrative = await verifyNarrative(murderId);
+        if (narrative.valid) {
+          narrativeFixed = true;
+          break;
+        }
+      }
+
+      if (!narrativeFixed) {
+        console.warn(
+          `⚠️  Attempt ${attempt}: narrative still invalid after fixes — ${narrative.reason}. Cleaning up...`,
+        );
+        await cleanupMurder(murderId);
+        if (attempt === maxRetries) {
+          throw new Error(
+            `Failed to generate a narratively coherent murder mystery after ${maxRetries} attempts`,
+          );
+        }
+        continue;
+      }
+    }
+    console.log(`✅ Narrative verified`);
 
     console.log("🖼️  Painting artwork");
     await generateImageForMurder(murderId);
