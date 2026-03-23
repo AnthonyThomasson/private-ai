@@ -25,7 +25,7 @@ export class ChatMessageHistory extends BaseChatMessageHistory {
     super({ sessionId: `${suspect.id}-${suspect.murderId}-${userToken}` });
   }
 
-  async getMessages(): Promise<AIMessage[] | HumanMessage[] | SystemMessage[]> {
+  async getMessages(): Promise<(AIMessage | HumanMessage | SystemMessage)[]> {
     const rows = await db
       .select()
       .from(messages)
@@ -78,6 +78,10 @@ export class ChatMessageHistory extends BaseChatMessageHistory {
   }
 
   async addAIChatMessage(message: string) {
+    await this.addMessage(new AIMessage(message));
+  }
+
+  async addAIMessage(message: string) {
     await this.addMessage(new AIMessage(message));
   }
 }
