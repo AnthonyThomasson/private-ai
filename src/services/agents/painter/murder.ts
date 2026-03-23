@@ -22,7 +22,7 @@ export const generateImageForMurder = async (murderId: number) => {
   });
 
   const prompt = `
-    A crime scene in the style of a retro pixle art video game. The murder, and its victim are described below.
+    A crime scene in the style of a retro pixel art video game. The murder, and its victim are described below.
 
     # Murder
     DESCRIPTION: ${murder?.description}

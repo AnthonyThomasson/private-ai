@@ -1103,7 +1103,9 @@ export const generateMurder = async (
     });
 
     const seed = await getMurderSeed();
-    console.log(`🗿 Inspiration: ${seed.type} | ${seed.location}`);
+    console.log(
+      `🗿 Inspiration: ${seed.type} | ${seed.location} | ${seed.era} | ${seed.tone} | ${seed.socialSetting}`,
+    );
 
     console.log(
       `🌱 Deep agent generating murder mystery... (attempt ${attempt}/${maxRetries})`,
@@ -1112,12 +1114,17 @@ export const generateMurder = async (
       messages: [
         {
           role: "user",
-          content: `Generate a murder mystery. Use this as inspiration: a ${seed.type} in ${seed.location}.`,
+          content: `Generate a murder mystery. Use this as inspiration: a ${seed.type} in ${seed.location}. Era: ${seed.era}. Tone: ${seed.tone}. Setting: ${seed.socialSetting}. Motive inspiration (category only): ${seed.motiveCategory}. The actual motive must be specific and grounded in the story.`,
         },
       ],
     });
 
     const murderId = getMurderId();
+    await db
+      .update(murders)
+      .set({ responseStyle: seed.responseStyle })
+      .where(eq(murders.id, murderId));
+
     let murder = await db.query.murders.findFirst({
       where: eq(murders.id, murderId),
     });

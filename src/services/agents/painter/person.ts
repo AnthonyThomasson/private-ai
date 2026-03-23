@@ -30,7 +30,7 @@ export const generateImageForPerson = async (personId: number) => {
   });
 
   let prompt = `
-    A headshot photograph in the style of a retro pixle art video game. The character in 
+    A headshot photograph in the style of a retro pixel art video game. The character in 
     the photograph is described below, and the location should be represented in the background.
 
     Gender: ${person?.gender}
@@ -40,7 +40,7 @@ export const generateImageForPerson = async (personId: number) => {
   `;
   if (isDead ?? false) {
     prompt = `
-    A polariod headshot photograph pinned to a bulletin board in the style of a retro pixle art video game. The 
+    A polaroid headshot photograph pinned to a bulletin board in the style of a retro pixel art video game. The 
     character in the photograph is described below.
 
     Gender: ${person?.gender}
