@@ -116,16 +116,22 @@ export const processMessage = async (suspectId: number, message: string) => {
 
   const revealClueLink = tool(
     async ({ clueLinkId }: { clueLinkId: number }) => {
+      // Look up which clue this link belongs to
+      const link = await db.query.clueLinks.findFirst({
+        where: eq(clueLinks.id, clueLinkId),
+      });
+      if (!link?.clueId) return `clue link ${clueLinkId} not found`;
+      // Reveal ALL links for this clue so co-linked suspects become discoverable
       await db
         .update(clueLinks)
         .set({ isVisible: 1 })
-        .where(eq(clueLinks.id, clueLinkId));
-      return `clue link ${clueLinkId} revealed`;
+        .where(eq(clueLinks.clueId, link.clueId));
+      return `clue ${link.clueId} revealed`;
     },
     {
       name: "reveal_clue_link",
       description:
-        "Call this when you choose to disclose information from one of your clue connections. Pass the ID of the clue link you are revealing.",
+        "Call this when you choose to disclose information from one of your clue connections. Revealing a clue makes all people connected to it discoverable in the investigation.",
       schema: z.object({
         clueLinkId: z
           .number()

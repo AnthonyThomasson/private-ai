@@ -20,62 +20,73 @@ const SYSTEM_PROMPT = `You are generating a murder mystery scenario. Use write_t
 4. Call create_person for the PERPETRATOR (the actual killer — keep secret, clues should only allude to them)
 5. Call set_victim_and_perpetrator
 
-## How Clue Discovery Works
-Clues are ONLY discovered through suspect interviews — the player cannot find them any other way.
+## How the Gameplay Loop Works (CRITICAL)
+The player discovers suspects ONLY through interviews. Suspects unlock each other in a chain:
 
-Each clue has one or more people linked to it via a "relation". This relation is the information that
-person will reveal when the player interviews them. The game works like this:
+1. The player sees the crime scene with a few VISIBLE clues
+2. Each visible clue is linked to an initial suspect — that suspect appears in the sidebar
+3. The player interviews that suspect; during conversation the suspect reveals a hidden clue
+4. Revealing a hidden clue also makes the NEXT suspect in that clue's link appear in the sidebar
+5. The player interviews the next suspect, and so on, until reaching evidence that points to the perpetrator
 
-1. The player inspects the crime scene and sees visible clues (physical evidence)
-2. Each visible clue names or implies a person to interview
-3. The player interviews that person; the person's "relation" to the clue is what they reveal
-4. That revelation points to the next clue or person in the chain
-5. This continues until the player has enough evidence to identify the perpetrator
+**For this chain to work, each "bridge" clue MUST be linked to TWO people:**
+- The INFORMANT: the person who will reveal this clue during their interview (they know something)
+- The NEXT SUSPECT: the person who becomes discoverable once this clue is revealed
 
-For this to work, EVERY clue must:
-- Be linked to at least one real person who can be interviewed about it
-- Have a "relation" that sounds like natural knowledge a person would share in conversation
-  (e.g. "saw someone leaving the building that night", "owns the item found at the scene",
-  "overheard a heated argument between the victim and someone matching the perpetrator's description")
-- Have a description that looks genuinely suspicious from the outside — never self-labeling
-  as unimportant, unrelated, or a dead end
+When the informant reveals the clue, both their link AND the next suspect's link become visible.
+This is how new suspects unlock. If a clue only links to one person, no new suspect unlocks from it.
 
-Dead ends are discovered THROUGH conversation, not FROM the clue itself:
-- A dead-end clue looks exactly as suspicious as a real clue
-- The person linked to it has a plausible "relation" — they know something believable, but it just
-  doesn't connect further to the crime when followed up
-- Only after the player talks to them does the trail go cold
+## Clue Structure
 
-## Generating Clues
-Create between 4 and 7 clues total. Design the full set so that:
+### Crime-scene clues (VISIBLE from the start)
+- Physical evidence at the scene that immediately points to 1–2 initial suspects
+- Link each to ONE person (the first suspect to interview)
+- Mark each visible with mark_clue_visible
+- The linked person's relation = what they know and will share when interviewed
 
-- **Some clues form a genuine trail** toward the perpetrator — each linked person's "relation"
-  naturally points the player toward the next clue or suspect. The evidence only becomes damning
-  when several clues are connected together. The perpetrator must never be directly named.
+### Bridge clues (HIDDEN — unlocked through interviews)
+- Each bridge clue MUST link to BOTH: (a) the informant, AND (b) the next suspect
+- Informant's relation = what they know about this clue (they reveal it in conversation)
+- Next suspect's relation = why they're connected to this clue (makes them discoverable)
+- The informant is the person who currently has visible clue links (already in sidebar)
+- Do NOT mark these visible — they start hidden and unlock when the informant reveals them
 
-- **Include 1–2 red herring suspects** — people who appear deeply suspicious (motive, opportunity,
-  conflicting alibis) but are ultimately innocent. Their linked clues should look exactly as damning
-  as real evidence. The player only discovers the truth through exhaustive questioning.
+### Perpetrator-linking clue (HIDDEN — the final step)
+- The last clue in the chain links to the perpetrator
+- The preceding suspect reveals it; the perpetrator becomes discoverable
+- The perpetrator's relation = the damning connection that breaks the case
 
-- **Include at least one plausible-looking dead end** — a clue that appears significant but whose
-  linked person, when interviewed, reveals information that doesn't connect to the actual crime.
-  The clue description must not hint at this; it should look like a real lead.
+### Dead-end clues (HIDDEN — optional misdirection)
+- A bridge clue that leads to a red herring suspect
+- The red herring's relation sounds suspicious but, when followed up in conversation, goes nowhere
+- Must still link to two people (informant + red herring) so the red herring unlocks properly
 
-- **Mark crime scene clues as visible** — physical evidence present at the initial crime scene
-  should be marked visible with mark_clue_visible. All other clues start hidden and are only
-  unlocked through interviews.
+## Example Chain (follow this structure)
+1. C1 (visible): "A monogrammed handkerchief near the body" → linked to Person A
+   - Person A.relation: "Saw someone arguing with the victim at 11pm near the study"
+   - mark_clue_visible on C1's link to Person A
 
-For each clue: first create any new people it references with create_person, then call create_clue.
+2. C2 (hidden): "CCTV footage of a figure in a distinctive coat" → linked to Person A AND Person B
+   - Person A.relation: "That coat — I know exactly who owns one like that"
+   - Person B.relation: "Was seen on CCTV near the victim's building that night"
+   Person A reveals C2 in interview → C2's link to Person B becomes visible → Person B unlocks in sidebar
+
+3. C3 (hidden): "A threatening letter in the victim's apartment" → linked to Person B AND Perpetrator
+   - Person B.relation: "Recognized the handwriting from a note they'd seen before"
+   - Perpetrator.relation: "Wrote the letter under a false name three weeks before the murder"
+   Person B reveals C3 → Perpetrator becomes discoverable
 
 ## Rules
 - clue.description = the observable fact the player sees. Always looks suspicious. Never reveals
-  whether it leads anywhere.
-- clueLink.relation = what that person knows and will reveal in conversation. Must sound natural,
-  specific, and like something a real person would say — not a formal clue summary.
-- Clues are objective facts only — never interrogation results, never opinions
-- All person names must be unique
-- The real perpetrator must never be directly named in any clue or relation
-- Keep the full cast of people narratively coherent with each other and the crime scene
+  whether it leads anywhere. Never labels itself as important or unimportant.
+- clueLink.relation = what that specific person knows and will reveal in conversation. Natural,
+  specific, like something a real person would say — not a formal clue summary.
+- For each clue: create any new people it references with create_person first, then call create_clue.
+- Clues are objective facts only — never interrogation results, never opinions.
+- All person names must be unique.
+- The real perpetrator must never be directly named in any clue or relation.
+- Keep the full cast of people narratively coherent with each other and the crime scene.
+- Create 4–6 clues total (1–2 visible crime-scene clues, 2–3 hidden bridge clues, 1 perpetrator clue).
 `;
 
 const buildTools = () => {

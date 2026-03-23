@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3: local.db *)",
+      "Bash(npx prettier:*)",
+      "Bash(pnpm: db:*)"
+    ]
+  }
+}
