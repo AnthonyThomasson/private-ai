@@ -1,15 +1,15 @@
 import { db } from "@/db";
-import { murders } from "@/db/models/murders";
-import { ChatOpenAI } from "@langchain/openai";
-import { z } from "zod";
-import { eq, not, and, exists } from "drizzle-orm";
-import { generatePersonFromDescription } from "../person/person";
-import { generateImageForMurder } from "../../painter/murder";
-import { people } from "@/db/models/people";
-import { generateImageForPerson } from "../../painter/person";
 import { clueLinks } from "@/db/models/clueLink";
-import { getMurderSeed } from "./seed";
+import { murders } from "@/db/models/murders";
+import { people } from "@/db/models/people";
+import { ChatOpenAI } from "@langchain/openai";
+import { and, eq, exists, not } from "drizzle-orm";
+import { z } from "zod";
+import { generateImageForMurder } from "../../painter/murder";
+import { generateImageForPerson } from "../../painter/person";
 import { generateCluesFromMurder } from "../clue/generator";
+import { generatePersonFromDescription } from "../person/person";
+import { getMurderSeed } from "./seed";
 
 export const generateMurder = async () => {
   const model = new ChatOpenAI({
@@ -77,7 +77,7 @@ export const generateMurder = async () => {
 
   await generateCluesFromMurder(murder.id);
 
-  console.log("🖼️ Painting artwork");
+  console.log("🖼️  Painting artwork");
   await generateImageForMurder(murder.id);
 
   await db
