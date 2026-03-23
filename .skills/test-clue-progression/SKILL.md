@@ -13,6 +13,21 @@ End-to-end test for murder mystery clue progression. Verifies suspects unlock th
 - At least one murder in the DB
 - Use the **murder-cheat-stress** skill when modifying suspect stress
 
+## Clear & Reseed Before Testing
+
+Before running the test, clear the database and reseed a fresh murder:
+
+```bash
+pnpm db:seed
+```
+
+This runs `db:push` then `tsx src/db/seed.ts`, which:
+
+1. Deletes all rows from `clue_links`, `clues`, `messages`, `people`, `locations`, `murders`
+2. Generates one new murder via the deep agent
+
+Use a fresh seed when you need a known-good state or suspect existing data is corrupted.
+
 ## DB Setup
 
 DB file is `data/local.db` (or `local.db` in project root). Use `DB_FILE_NAME` from .env if present — strip the `file:` prefix for sqlite3 (e.g. `data/local.db`).
@@ -33,9 +48,9 @@ Initial visible suspects = people with at least one `clue_links` row where `is_v
 ```bash
 # Visible suspect person IDs for a murder
 sqlite3 data/local.db "
-SELECT DISTINCT cl.person_id, pe.name 
-FROM clue_links cl 
-JOIN people pe ON cl.person_id = pe.id 
+SELECT DISTINCT cl.person_id, pe.name
+FROM clue_links cl
+JOIN people pe ON cl.person_id = pe.id
 WHERE cl.murder_id = <murder_id> AND cl.is_visible = 1 AND cl.person_id != (SELECT victim_id FROM murders WHERE id = <murder_id>);
 "
 
@@ -50,11 +65,11 @@ To plan a non-linear test path, inspect the clue chain:
 
 ```bash
 sqlite3 data/local.db "
-SELECT cl.id, c.description as clue, pe.name, cl.is_visible 
-FROM clue_links cl 
-JOIN clues c ON cl.clue_id = c.id 
-JOIN people pe ON cl.person_id = pe.id 
-WHERE cl.murder_id = <murder_id> 
+SELECT cl.id, c.description as clue, pe.name, cl.is_visible
+FROM clue_links cl
+JOIN clues c ON cl.clue_id = c.id
+JOIN people pe ON cl.person_id = pe.id
+WHERE cl.murder_id = <murder_id>
 ORDER BY cl.clue_id, cl.person_id;
 "
 ```
@@ -95,6 +110,7 @@ sqlite3 data/local.db "SELECT id, name, stress FROM people WHERE murder_id = <mu
 4. Repeat with newly unlocked suspects
 
 **Non-linear path**: Do NOT rush straight to the perpetrator. Intentionally:
+
 - Interview 2+ initial suspects
 - Follow clues that unlock red herrings (suspects with no path to perpetrator)
 - Only then follow the chain that leads to the perpetrator
@@ -106,6 +122,7 @@ sqlite3 data/local.db "SELECT id, name, stress FROM people WHERE murder_id = <mu
 - [ ] At least 3 suspects interviewed before perpetrator appeared
 - [ ] Path was non-linear: multiple clues led to multiple suspects
 - [ ] Some suspects/clues did not lead to the perpetrator (dead ends)
+- [ ] There was at least one red herring suspect
 - [ ] Perpetrator became visible only after a preceding suspect revealed their linking clue
 - [ ] At stress 100, perpetrator confessed
 
