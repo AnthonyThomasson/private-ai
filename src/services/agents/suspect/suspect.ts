@@ -17,6 +17,11 @@ const buildSystemPrompt = (suspect: Person, isPerpetrator: boolean) => {
     })
     .join("\n");
 
+  const motiveContext =
+    isPerpetrator && (suspect as { motive?: string }).motive
+      ? `\nYOUR MOTIVE (private — do NOT disclose directly; let it shape your deflections and your confession when stress = 100):\n${(suspect as { motive?: string }).motive}\n`
+      : "";
+
   return `You are ${suspect.name}, a ${suspect.age}-year-old ${suspect.occupation}.
 Personality traits: ${suspect.personality ?? "reserved"} — let these traits shape every response. Your word choice, tone, and emotional reactions should reflect these traits consistently.
 
@@ -26,7 +31,7 @@ You are being interviewed about a murder. Stay fully in character.
 
 YOUR CONNECTION TO THE CASE:
 ${clueContext || "You have no direct knowledge of the clues."}
-
+${motiveContext}
 MURDER CONTEXT (background only — do not disclose directly):
 ${JSON.stringify((suspect as { murder?: unknown }).murder ?? {})}
 

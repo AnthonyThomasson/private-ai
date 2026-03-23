@@ -24,6 +24,9 @@ Before calling any tools, use write_todos to lay out:
   e) At least 1 dead-end branch: an initial suspect who leads to a red herring, not the perpetrator
   f) For each bridge clue: who reveals it AND who it unlocks (two people per bridge clue)
   g) Which 1–2 crime-scene clues link to initial suspects (visible from start)
+  h) The perpetrator's motive — a specific, believable reason grounded in the setting and relationships
+     (e.g. inheritance dispute, jealousy, blackmail, silencing a witness, revenge). Must be consistent
+     with the clue chain you design.
 
 CHAIN RULES — non-negotiable:
 - Chain depth MUST be ≥ 2 intermediate suspects before the perpetrator is reachable
@@ -32,12 +35,17 @@ CHAIN RULES — non-negotiable:
 - At least one initial suspect MUST lead to a dead-end (red herring) that never reaches the perpetrator
 - Every non-initial suspect must be unlocked by a bridge clue from the preceding suspect
 - The victim MUST NOT appear in any clue link — they are dead and cannot be interviewed
+- Every clue in the chain must be consistent with the perpetrator's motive. The motive must NOT
+  appear in any clue text, but the clues should logically support why someone with that motive
+  would commit this crime.
 
 ## Setup
 1. Invent a realistic murder: a specific type (poisoning, stabbing, etc.) and location on Earth
 2. Call create_murder_scene with a 1-sentence crime scene description (cause of death, no sci-fi, no names)
 3. Call create_person for the VICTIM — a person found dead at the crime scene (DEAD — cannot be interviewed, do not create clue links for them)
-4. Call create_person for the PERPETRATOR (the actual killer — keep secret, clues should only allude to them)
+4. Call create_person for the PERPETRATOR — pass their motive in the \`motive\` field. The motive must
+   be specific (not generic) and plausible given the victim, the location, and the relationships you've
+   established. (Keep the perpetrator's identity secret — clues should only allude to them)
 5. Call set_victim_and_perpetrator
 
 ## How the Gameplay Loop Works (CRITICAL)
@@ -198,6 +206,7 @@ const buildTools = () => {
       occupation,
       description,
       personality,
+      motive,
       address,
       locationDescription,
     }: {
@@ -207,6 +216,7 @@ const buildTools = () => {
       occupation: string;
       description: string;
       personality: string;
+      motive?: string;
       address: string;
       locationDescription: string;
     }) => {
@@ -235,6 +245,7 @@ const buildTools = () => {
           occupation,
           description,
           personality,
+          motive: motive ?? null,
           locationId: location.id,
           murderId: mId,
         })
@@ -258,6 +269,12 @@ const buildTools = () => {
         personality: z
           .string()
           .describe("Comma-separated single-word personality traits"),
+        motive: z
+          .string()
+          .optional()
+          .describe(
+            "The perpetrator's specific motive for the murder. Only set this for the perpetrator — leave empty for all other people.",
+          ),
         address: z
           .string()
           .describe("The address where this person lives or works"),
@@ -619,6 +636,7 @@ const buildFixTools = (murderId: number) => {
       occupation,
       description,
       personality,
+      motive,
       address,
       locationDescription,
     }: {
@@ -628,6 +646,7 @@ const buildFixTools = (murderId: number) => {
       occupation: string;
       description: string;
       personality: string;
+      motive?: string;
       address: string;
       locationDescription: string;
     }) => {
@@ -651,6 +670,7 @@ const buildFixTools = (murderId: number) => {
           occupation,
           description,
           personality,
+          motive: motive ?? null,
           locationId: location.id,
           murderId,
         })
@@ -673,6 +693,12 @@ const buildFixTools = (murderId: number) => {
         personality: z
           .string()
           .describe("Comma-separated single-word personality traits"),
+        motive: z
+          .string()
+          .optional()
+          .describe(
+            "The perpetrator's specific motive for the murder. Only set this for the perpetrator — leave empty for all other people.",
+          ),
         address: z
           .string()
           .describe("The address where this person lives or works"),

@@ -25,6 +25,12 @@ End-to-end test: suspects unlock through interviews, perpetrator hidden at first
 
 1. **Reset data** — Read and follow **murder-db-seed** (`pnpm db:seed`). Wait for generation to finish.
 2. **Inspect DB** — Use **murder-db-inspect** to get `murder_id`, confirm perpetrator is not in the visible-suspects query. **Map the clue graph** — you need `clue.description`, `pe.name`, and `cl.is_visible` to know what to ask each suspect.
+
+   **Motive check** — Query the perpetrator's motive:
+   ```bash
+   sqlite3 <db_path> "SELECT p.name, p.motive FROM people p JOIN murders m ON m.perpetrator_id = p.id WHERE m.id = <murder_id>;"
+   ```
+   Confirm: motive is non-null, specific (not generic like "anger"), and plausible given the crime scene description and victim's occupation/relationships. All non-perpetrators should have a null motive.
 3. **Browser** — Use **cursor-ide-browser** (MCP) or **claude browser**: open `/`, open the murder → `/murders/<id>/clues`. Sidebar must not list the perpetrator.
 4. **Stress** — **murder-cheat-stress**: set stress on suspects you will interview (e.g. 50); perpetrator 100 when testing confession.
 5. **Interviews** — Follow the logical progression below.
@@ -51,6 +57,9 @@ Each reveal must flow naturally from the conversation:
 - [ ] Perpetrator appeared only after another suspect’s reveal
 - [ ] Each reveal followed a logical conversation (question touched clue relation → reveal → sidebar update → next suspect asked about their relation)
 - [ ] At stress 100, perpetrator confessed
+- [ ] Perpetrator has a non-null, specific motive (not generic)
+- [ ] Motive is consistent with the crime scene and clue chain
+- [ ] At stress 100, perpetrator’s confession references the motive (the "why")
 
 ## Troubleshooting
 
