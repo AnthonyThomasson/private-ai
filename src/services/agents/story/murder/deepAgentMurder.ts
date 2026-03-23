@@ -112,7 +112,9 @@ Verify every rule is met before stopping:
 - [ ] ONLY 1–2 crime-scene clue links were marked visible with mark_clue_visible
 - [ ] The perpetrator's clue links are NOT marked visible
 - [ ] Bridge clues are NOT marked visible
-- [ ] Chain depth from crime scene to perpetrator is ≥ 2 suspects
+- [ ] Chain depth from crime scene to perpetrator is ≥ 2 intermediate suspects (not 1!)
+- [ ] At least one initial suspect leads to a dead-end, not toward the perpetrator
+- [ ] The perpetrator's NAME does not appear anywhere in any clue description or relation text
 
 ## Rules
 - clue.description = the observable fact the player sees. Always looks suspicious. Never reveals
@@ -122,9 +124,15 @@ Verify every rule is met before stopping:
 - For each clue: create any new people it references with create_person first, then call create_clue.
 - Clues are objective facts only — never interrogation results, never opinions.
 - All person names must be unique.
-- The real perpetrator must never be directly named in any clue or relation.
+- ❌ CRITICAL: The perpetrator's name MUST NEVER appear in any clue description or any relation text.
+  This applies to ALL clues, including bridge clues and the final perpetrator-linking clue.
+  WRONG: "Security footage shows [Perpetrator] acting aggressively near the victim"
+  RIGHT: "Security footage shows an unidentified figure behaving aggressively near the victim"
+  WRONG: "Testimony about [Perpetrator]'s suspicious behavior near the scene"
+  RIGHT: "Testimony about a suspicious individual seen lingering near the victim's area"
+  The perpetrator's personId is used to link them to the final clue — their NAME must stay out of all text.
 - Keep the full cast of people narratively coherent with each other and the crime scene.
-- Create 4–6 clues total (1–2 visible crime-scene clues, 2–3 hidden bridge clues, 1 perpetrator clue).
+- Create 5–7 clues total (1–2 visible crime-scene clues, 2–3 hidden bridge clues, 1 dead-end clue, 1 perpetrator clue).
 `;
 
 const buildTools = () => {
@@ -457,6 +465,64 @@ const validateChain = async (
       valid: false,
       reason: `Perpetrator only ${perpetratorDepth} step(s) from crime scene — need ≥ 2`,
     };
+  }
+
+  // Check that at least one initial suspect leads to a dead end (not toward perpetrator)
+  // i.e., at least one initial suspect has no path to the perpetrator through hidden clues alone
+  const hasDeadEnd = Array.from(visiblePersonIds).some((p) => {
+    // BFS from this single initial suspect; see if perpetrator is reachable
+    const reachable = new Set<number>([p]);
+    const q = [p];
+    while (q.length > 0) {
+      const cur = q.shift()!;
+      for (const clueId of personToClueIds.get(cur) ?? []) {
+        for (const next of clueToPersons.get(clueId) ?? []) {
+          if (!reachable.has(next) && next !== victimId) {
+            reachable.add(next);
+            q.push(next);
+          }
+        }
+      }
+    }
+    return !reachable.has(perpetratorId);
+  });
+
+  if (!hasDeadEnd) {
+    return {
+      valid: false,
+      reason:
+        "Every initial suspect leads to the perpetrator — need at least one dead-end branch",
+    };
+  }
+
+  // Check that the perpetrator's name does not appear in any clue description or relation text
+  const perpetratorPerson = await db.query.people.findFirst({
+    where: eq(people.id, perpetratorId),
+  });
+  if (perpetratorPerson) {
+    const perpetratorName = perpetratorPerson.name.toLowerCase();
+    const allClues = await db.query.clues.findMany({
+      where: eq(clues.murderId, murderId),
+    });
+    for (const clue of allClues) {
+      if (clue.description.toLowerCase().includes(perpetratorName)) {
+        return {
+          valid: false,
+          reason: `Perpetrator's name "${perpetratorPerson.name}" appears in clue description: "${clue.description.slice(0, 80)}..."`,
+        };
+      }
+    }
+    for (const link of allLinks) {
+      if (
+        link.personId !== perpetratorId &&
+        link.description?.toLowerCase().includes(perpetratorName)
+      ) {
+        return {
+          valid: false,
+          reason: `Perpetrator's name "${perpetratorPerson.name}" appears in a clue relation for person ${link.personId}`,
+        };
+      }
+    }
   }
 
   return { valid: true, depth };
