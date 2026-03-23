@@ -966,7 +966,7 @@ export const generateMurder = async (maxRetries = 3, maxFixAttempts = 2) => {
         const fixAgent = createDeepAgent({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           tools: buildFixTools(murderId) as any,
-          model: "openai:gpt-4.1-mini",
+          model: "openai:o4-mini",
           systemPrompt: FIX_SYSTEM_PROMPT,
         });
         await fixAgent.invoke({

@@ -1,9 +1,9 @@
 import { db } from "@/db";
+import { murders } from "@/db/models/murders";
 import { eq } from "drizzle-orm";
 import fs from "fs";
-import path from "path";
 import OpenAI from "openai";
-import { murders } from "@/db/models/murders";
+import path from "path";
 import { callWithRetry } from "../utils";
 
 export const generateImageForMurder = async (murderId: number) => {
@@ -36,7 +36,7 @@ export const generateImageForMurder = async (murderId: number) => {
 
   const result = await callWithRetry(async () =>
     openai.images.generate({
-      model: "gpt-image-1",
+      model: "gpt-image-1-mini",
       prompt,
       size: "1536x1024",
     }),
