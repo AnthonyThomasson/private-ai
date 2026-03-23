@@ -1,5 +1,12 @@
 {
   "permissions": {
-    "allow": ["Bash(sqlite3:*)", "Bash(npx prettier:*)", "Bash(pnpm: db:*)"]
+    "allow": [
+      "Bash(sqlite3:*)",
+      "Bash(npx prettier:*)",
+      "Bash(pnpm: db:*)",
+      "Bash(sqlite3:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(npx tsc:*)"
+    ]
   }
 }

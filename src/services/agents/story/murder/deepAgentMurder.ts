@@ -135,6 +135,29 @@ Verify every rule is met before stopping:
 - Create 5–7 clues total (1–2 visible crime-scene clues, 2–3 hidden bridge clues, 1 dead-end clue, 1 perpetrator clue).
 `;
 
+const FIX_SYSTEM_PROMPT = `You are repairing a murder mystery chain that failed validation.
+
+You will be given the exact validation error. Your ONLY job is to make the minimal change that fixes it.
+
+## Step 1: Always call get_chain_state first
+Read the current clues, clue links, and people before making any changes.
+
+## Step 2: Identify the exact problem
+Map the error to what is broken in the data.
+
+## Step 3: Fix it minimally
+- Prefer updating existing data over creating new entities
+- Only use create_person / create_clue if the fix genuinely requires a new intermediate suspect or red herring (depth extension, dead-end branch)
+- Do NOT rewrite the story. Do NOT change names. Do NOT touch unaffected clues.
+
+## Rules (non-negotiable)
+- Never write the perpetrator's name in any clue description or relation text
+- Never mark a bridge clue, dead-end clue, or perpetrator clue as visible — only mark the 1–2 initial crime-scene clue links
+- A valid chain requires: ≥2 intermediate suspects between crime scene and perpetrator, AND at least one initial suspect that does NOT reach the perpetrator
+- The victim must not appear in any clue link
+- Stop after making one coherent fix. The validation will re-run automatically.
+`;
+
 const buildTools = () => {
   let murderId: number | null = null;
 
@@ -381,6 +404,361 @@ const buildTools = () => {
   };
 };
 
+const buildFixTools = (murderId: number) => {
+  const getChainState = tool(
+    async () => {
+      const allPeople = await db.query.people.findMany({
+        where: eq(people.murderId, murderId),
+      });
+      const allClues = await db.query.clues.findMany({
+        where: eq(clues.murderId, murderId),
+      });
+      const allLinks = await db.query.clueLinks.findMany({
+        where: eq(clueLinks.murderId, murderId),
+      });
+      const murder = await db.query.murders.findFirst({
+        where: eq(murders.id, murderId),
+      });
+      return JSON.stringify({
+        murder: {
+          id: murder?.id,
+          victimId: murder?.victimId,
+          perpetratorId: murder?.perpetratorId,
+        },
+        people: allPeople.map((p) => ({
+          personId: p.id,
+          name: p.name,
+          occupation: p.occupation,
+        })),
+        clues: allClues.map((c) => ({
+          clueId: c.id,
+          description: c.description,
+        })),
+        clueLinks: allLinks.map((l) => ({
+          clueLinkId: l.id,
+          clueId: l.clueId,
+          personId: l.personId,
+          relation: l.description,
+          isVisible: l.isVisible,
+        })),
+      });
+    },
+    {
+      name: "get_chain_state",
+      description:
+        "Read the current state of all clues, clue links, and people for this murder. Call this first before making any changes.",
+      schema: z.object({}),
+    },
+  );
+
+  const setClueLinkVisible = tool(
+    async ({
+      clueLinkId,
+      visible,
+    }: {
+      clueLinkId: number;
+      visible: boolean;
+    }) => {
+      await db
+        .update(clueLinks)
+        .set({ isVisible: visible ? 1 : 0 })
+        .where(eq(clueLinks.id, clueLinkId));
+      console.log(`👁️  Clue link ${clueLinkId} visibility set to ${visible}`);
+      return "success";
+    },
+    {
+      name: "set_clue_link_visible",
+      description:
+        "Mark a clue link as visible (true) or hidden (false). Use to fix incorrect visibility — only the 1–2 initial crime-scene clue links should be visible.",
+      schema: z.object({
+        clueLinkId: z.number().describe("The clueLinkId to update"),
+        visible: z
+          .boolean()
+          .describe("true = visible at crime scene, false = hidden"),
+      }),
+    },
+  );
+
+  const updateClueDescription = tool(
+    async ({
+      clueId,
+      description,
+    }: {
+      clueId: number;
+      description: string;
+    }) => {
+      await db.update(clues).set({ description }).where(eq(clues.id, clueId));
+      console.log(`✏️  Clue ${clueId} description updated`);
+      return "success";
+    },
+    {
+      name: "update_clue_description",
+      description:
+        "Rewrite a clue's description text. Use to remove the perpetrator's name if it was accidentally included.",
+      schema: z.object({
+        clueId: z.number().describe("The clueId to update"),
+        description: z
+          .string()
+          .describe(
+            "The corrected clue description — must not contain the perpetrator's name",
+          ),
+      }),
+    },
+  );
+
+  const updateClueRelation = tool(
+    async ({
+      clueLinkId,
+      relation,
+    }: {
+      clueLinkId: number;
+      relation: string;
+    }) => {
+      await db
+        .update(clueLinks)
+        .set({ description: relation })
+        .where(eq(clueLinks.id, clueLinkId));
+      console.log(`✏️  Clue link ${clueLinkId} relation updated`);
+      return "success";
+    },
+    {
+      name: "update_clue_relation",
+      description:
+        "Rewrite a clue link's relation text. Use to remove the perpetrator's name if it was accidentally included.",
+      schema: z.object({
+        clueLinkId: z.number().describe("The clueLinkId to update"),
+        relation: z
+          .string()
+          .describe(
+            "The corrected relation text — must not contain the perpetrator's name",
+          ),
+      }),
+    },
+  );
+
+  const updateClueLinkPerson = tool(
+    async ({
+      clueLinkId,
+      newPersonId,
+    }: {
+      clueLinkId: number;
+      newPersonId: number;
+    }) => {
+      const person = await db.query.people.findFirst({
+        where: eq(people.id, newPersonId),
+      });
+      if (!person) {
+        return `RETRY: personId ${newPersonId} does not exist.`;
+      }
+      await db
+        .update(clueLinks)
+        .set({ personId: newPersonId })
+        .where(eq(clueLinks.id, clueLinkId));
+      console.log(
+        `🔗 Clue link ${clueLinkId} rewired to person ${newPersonId}`,
+      );
+      return "success";
+    },
+    {
+      name: "update_clue_link_person",
+      description:
+        "Rewire an existing clue link to point to a different person. Use when a link points to the wrong person in the chain.",
+      schema: z.object({
+        clueLinkId: z.number().describe("The clueLinkId to rewire"),
+        newPersonId: z
+          .number()
+          .describe("The personId this link should now point to"),
+      }),
+    },
+  );
+
+  const addClueLink = tool(
+    async ({
+      clueId,
+      personId,
+      relation,
+    }: {
+      clueId: number;
+      personId: number;
+      relation: string;
+    }) => {
+      const person = await db.query.people.findFirst({
+        where: eq(people.id, personId),
+      });
+      if (!person) {
+        return `RETRY: personId ${personId} does not exist.`;
+      }
+      const [link] = await db
+        .insert(clueLinks)
+        .values({ murderId, clueId, personId, description: relation })
+        .returning();
+      console.log(`➕ Added clue link: clue ${clueId} → person ${personId}`);
+      return JSON.stringify({ clueLinkId: link.id });
+    },
+    {
+      name: "add_clue_link",
+      description:
+        "Add a new link from an existing clue to a person. Use when a clue needs to connect to a person it currently doesn't link to.",
+      schema: z.object({
+        clueId: z.number().describe("The clueId to add a link for"),
+        personId: z.number().describe("The personId to link to"),
+        relation: z
+          .string()
+          .describe(
+            "What this person knows about or how they connect to this clue",
+          ),
+      }),
+    },
+  );
+
+  const createPerson = tool(
+    async ({
+      name,
+      age,
+      gender,
+      occupation,
+      description,
+      personality,
+      address,
+      locationDescription,
+    }: {
+      name: string;
+      age: number;
+      gender: "male" | "female";
+      occupation: string;
+      description: string;
+      personality: string;
+      address: string;
+      locationDescription: string;
+    }) => {
+      const existing = await db
+        .select({ count: count() })
+        .from(people)
+        .where(eq(people.name, name));
+      if (existing[0].count > 0) {
+        return `RETRY: A person named "${name}" already exists. Choose a different name.`;
+      }
+      const [location] = await db
+        .insert(locations)
+        .values({ address, description: locationDescription, murderId })
+        .returning();
+      const [person] = await db
+        .insert(people)
+        .values({
+          name,
+          age,
+          gender,
+          occupation,
+          description,
+          personality,
+          locationId: location.id,
+          murderId,
+        })
+        .returning();
+      console.log("👤 Fix: Person created:", name, `(${occupation})`);
+      return JSON.stringify({ personId: person.id, locationId: location.id });
+    },
+    {
+      name: "create_person",
+      description:
+        "Create a new person. Only use when the fix genuinely requires a new intermediate suspect or red herring (e.g. to extend chain depth or add a dead-end branch). Returns personId.",
+      schema: z.object({
+        name: z.string().describe("Full name of the person"),
+        age: z.number().describe("Age of the person"),
+        gender: z.enum(["male", "female"]).describe("Gender of the person"),
+        occupation: z.string().describe("Occupation of the person"),
+        description: z
+          .string()
+          .describe("A 1-sentence physical description of the person"),
+        personality: z
+          .string()
+          .describe("Comma-separated single-word personality traits"),
+        address: z
+          .string()
+          .describe("The address where this person lives or works"),
+        locationDescription: z
+          .string()
+          .describe(
+            "A 1-sentence description of the physical space. Do NOT mention the person.",
+          ),
+      }),
+    },
+  );
+
+  const createClue = tool(
+    async ({
+      description,
+      relatedPeople,
+    }: {
+      description: string;
+      relatedPeople: { personId: number; relation: string }[];
+    }) => {
+      for (const { personId } of relatedPeople) {
+        const person = await db.query.people.findFirst({
+          where: eq(people.id, personId),
+        });
+        if (!person) {
+          return `RETRY: personId ${personId} does not exist. Use create_person first.`;
+        }
+      }
+      const [clue] = await db
+        .insert(clues)
+        .values({ description, murderId })
+        .returning();
+      const insertedLinks: { clueLinkId: number; personId: number }[] = [];
+      for (const { personId, relation } of relatedPeople) {
+        const [link] = await db
+          .insert(clueLinks)
+          .values({
+            murderId,
+            clueId: clue.id,
+            personId,
+            description: relation,
+          })
+          .returning();
+        insertedLinks.push({ clueLinkId: link.id, personId });
+      }
+      console.log("🔍 Fix: Clue created:", description.slice(0, 60) + "...");
+      return JSON.stringify({ clueId: clue.id, clueLinks: insertedLinks });
+    },
+    {
+      name: "create_clue",
+      description:
+        "Create a new clue with links to people. Only use when the fix requires adding a bridge clue or dead-end clue that doesn't exist yet.",
+      schema: z.object({
+        description: z
+          .string()
+          .describe("Objective, factual description of the clue"),
+        relatedPeople: z
+          .array(
+            z.object({
+              personId: z
+                .number()
+                .describe("personId of a person connected to this clue"),
+              relation: z
+                .string()
+                .describe(
+                  "A 1-sentence description of how this person is connected to the clue",
+                ),
+            }),
+          )
+          .describe("People linked to this clue"),
+      }),
+    },
+  );
+
+  return [
+    getChainState,
+    setClueLinkVisible,
+    updateClueDescription,
+    updateClueRelation,
+    updateClueLinkPerson,
+    addClueLink,
+    createPerson,
+    createClue,
+  ];
+};
+
 const validateChain = async (
   murderId: number,
   perpetratorId: number,
@@ -542,7 +920,7 @@ const cleanupMurder = async (murderId: number) => {
   await db.delete(murders).where(eq(murders.id, murderId));
 };
 
-export const generateMurder = async (maxRetries = 3) => {
+export const generateMurder = async (maxRetries = 3, maxFixAttempts = 2) => {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const { tools, getMurderId } = buildTools();
 
@@ -569,27 +947,62 @@ export const generateMurder = async (maxRetries = 3) => {
     });
 
     const murderId = getMurderId();
-    const murder = await db.query.murders.findFirst({
+    let murder = await db.query.murders.findFirst({
       where: eq(murders.id, murderId),
     });
 
-    const validation = await validateChain(
+    let validation = await validateChain(
       murderId,
       murder!.perpetratorId!,
       murder!.victimId!,
     );
 
     if (!validation.valid) {
-      console.warn(
-        `⚠️  Attempt ${attempt}: invalid chain — ${validation.reason}. Cleaning up...`,
-      );
-      await cleanupMurder(murderId);
-      if (attempt === maxRetries) {
-        throw new Error(
-          `Failed to generate a valid murder mystery after ${maxRetries} attempts`,
+      let fixed = false;
+      for (let fix = 1; fix <= maxFixAttempts; fix++) {
+        console.warn(
+          `🔧 Fix attempt ${fix}/${maxFixAttempts}: ${validation.reason}`,
         );
+        const fixAgent = createDeepAgent({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          tools: buildFixTools(murderId) as any,
+          model: "openai:gpt-4.1-mini",
+          systemPrompt: FIX_SYSTEM_PROMPT,
+        });
+        await fixAgent.invoke({
+          messages: [
+            {
+              role: "user",
+              content: `Validation failed: "${validation.reason}". Fix this and only this problem.`,
+            },
+          ],
+        });
+        murder = await db.query.murders.findFirst({
+          where: eq(murders.id, murderId),
+        });
+        validation = await validateChain(
+          murderId,
+          murder!.perpetratorId!,
+          murder!.victimId!,
+        );
+        if (validation.valid) {
+          fixed = true;
+          break;
+        }
       }
-      continue;
+
+      if (!fixed) {
+        console.warn(
+          `⚠️  Attempt ${attempt}: still invalid after fixes — ${validation.reason}. Cleaning up...`,
+        );
+        await cleanupMurder(murderId);
+        if (attempt === maxRetries) {
+          throw new Error(
+            `Failed to generate a valid murder mystery after ${maxRetries} attempts`,
+          );
+        }
+        continue;
+      }
     }
 
     const perpetratorDepth = validation.depth!.get(murder!.perpetratorId!)!;
