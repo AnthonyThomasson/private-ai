@@ -19,6 +19,13 @@ export const getPersonProfile = async (personId: number) => {
 	`;
 };
 
+export const getPersonStress = async (personId: number): Promise<number> => {
+  const person = await db.query.people.findFirst({
+    where: eq(people.id, personId),
+  });
+  return person?.stress ?? 0;
+};
+
 export const isPersonMurderer = async (personId: number) => {
   return (
     (
