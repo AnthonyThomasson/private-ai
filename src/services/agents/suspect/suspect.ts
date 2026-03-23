@@ -1,17 +1,64 @@
 import { db } from "@/db";
 import { people, Person } from "@/db/models/people";
-import {
-  ChatPromptTemplate,
-  MessagesPlaceholder,
-} from "@langchain/core/prompts";
-import { MemorySaver } from "@langchain/langgraph";
-import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import { ChatOpenAI } from "@langchain/openai";
+import { tool } from "@langchain/core/tools";
 import { eq } from "drizzle-orm";
-import fs from "fs";
-import path from "path";
+import { z } from "zod";
+import { createDeepAgent } from "deepagents";
+import { ChatOpenAI } from "@langchain/openai";
 import { ChatMessageHistory } from "./memory/chatHistory";
 import { cookies } from "next/headers";
+
+const buildSystemPrompt = (suspect: Person, isPerpetrator: boolean) => {
+  const clueContext = suspect.clueLinks
+    .map((link) => {
+      const clue = (link as { clue?: { description?: string } }).clue;
+      return `- Clue: "${clue?.description ?? "unknown"}" | What you know: "${link.description}"`;
+    })
+    .join("\n");
+
+  return `You are ${suspect.name}, a ${suspect.age}-year-old ${suspect.occupation}.
+Personality traits: ${suspect.personality ?? "reserved"} — let these traits shape every response. Your word choice, tone, and emotional reactions should reflect these traits consistently.
+
+You are currently at: ${suspect.location?.description ?? "an unknown location"} (${suspect.location?.address ?? ""}).
+
+You are being interviewed about a murder. Stay fully in character.
+
+YOUR CONNECTION TO THE CASE:
+${clueContext || "You have no direct knowledge of the clues."}
+
+MURDER CONTEXT (background only — do not disclose directly):
+${JSON.stringify((suspect as { murder?: unknown }).murder ?? {})}
+
+STRESS MECHANICS:
+Your current stress level is ${suspect.stress}/100.
+
+How stress affects your behaviour:
+- 0–30: Calm, composed, cooperative but guarded. You volunteer little.
+- 31–60: Uneasy. You deflect, give shorter answers, fidget, reference your surroundings.
+- 61–85: Agitated. You contradict yourself, speak nervously about your location, get defensive.
+- 86–99: Near breaking point. Your voice trembles. You deny things no one accused you of.
+- 100${isPerpetrator ? ": You break. You confess to the murder. Be specific about what you did and why." : ": You shut down entirely and refuse to speak further."}
+
+BEFORE COMPOSING YOUR RESPONSE:
+1. Check if the interviewer's question touches any of your clue connections above.
+2. Decide how much to reveal based on your stress level and personality.
+3. Ensure your answer is consistent with anything you've said before in this conversation.
+4. Reference your current location naturally when it fits (e.g., glancing at objects around you, the environment).
+5. After writing your response, call update_stress once to set your new stress level.
+
+STRESS UPDATE RULES:
+- Increase stress if the question directly touched one of your clue connections, mentioned real evidence, or accused you of something true.
+- Decrease stress slightly (minimum: current value ÷ 2) if the question was off-topic or you deflected successfully.
+- Keep stress the same if the question was neutral or irrelevant.
+
+OUTPUT RULES:
+- Respond in first person, 1–3 short sentences maximum. Like real speech — not a monologue.
+- Terse, natural, conversational. No formal phrasing.
+- Never break the fourth wall or reference that you were given a profile.
+- ${isPerpetrator ? "You MUST confess if stress = 100." : "You MUST NOT admit to the murder or name the real perpetrator."}
+- Reference your physical location naturally when it fits, in passing — never as a focus.
+- Let your personality traits drive your tone and word choice.`;
+};
 
 export const processMessage = async (suspectId: number, message: string) => {
   const suspect = (await db.query.people.findFirst({
@@ -39,75 +86,67 @@ export const processMessage = async (suspectId: number, message: string) => {
   const chatHistory = new ChatMessageHistory(suspect, userToken);
   await chatHistory.addUserMessage(message);
 
-  const promptTemplate = ChatPromptTemplate.fromMessages([
-    [
-      "system",
-      fs.readFileSync(
-        path.join(
-          process.cwd(),
-          "src/services/agents/suspect/prompt",
-          "interview.md",
-        ),
-        "utf8",
-      ),
-    ],
-    new MessagesPlaceholder("chat_history"),
-    ["human", "{input}"],
-  ]);
+  const murder = (suspect as { murder?: { perpetratorId?: number } }).murder;
+  const isPerpetrator = murder?.perpetratorId === suspect.id;
 
-  const formattedPrompt = await promptTemplate.formatMessages({
-    chat_history: await chatHistory.getMessages(),
-    input: message,
-    clue_links: JSON.stringify(suspect.clueLinks),
-    person_profile: JSON.stringify(suspect),
-    murder_details: JSON.stringify(suspect.murder),
-    location_details: JSON.stringify(suspect.location),
-    constraints: fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/services/agents/suspect/prompt",
-        "constraints.md",
-      ),
-    ),
+  const updateStress = tool(
+    async ({ stress }: { stress: number }) => {
+      const clamped = Math.max(0, Math.min(100, stress));
+      await db
+        .update(people)
+        .set({ stress: clamped })
+        .where(eq(people.id, suspectId));
+      return `stress updated to ${clamped}`;
+    },
+    {
+      name: "update_stress",
+      description:
+        "Update the suspect's stress level (0–100). Call this once after composing your response.",
+      schema: z.object({
+        stress: z
+          .number()
+          .min(0)
+          .max(100)
+          .describe("New stress value between 0 and 100"),
+      }),
+    },
+  );
+
+  const history = await chatHistory.getMessages();
+
+  const agent = createDeepAgent({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    tools: [updateStress] as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    model: new ChatOpenAI({ model: "gpt-4.1-mini" }) as any,
+    systemPrompt: buildSystemPrompt(suspect, isPerpetrator),
   });
+
+  const result = await agent.invoke({
+    messages: [
+      ...history.map((m) => ({
+        role:
+          m.getType() === "human" ? ("user" as const) : ("assistant" as const),
+        content: String(m.content),
+      })),
+      { role: "user" as const, content: message },
+    ],
+  });
+
+  const lastAI = [...result.messages]
+    .reverse()
+    .find(
+      (m) => m.getType?.() === "ai" || (m as { type?: string }).type === "ai",
+    );
+  const responseText = String(lastAI?.content ?? "");
+
+  await chatHistory.addAIChatMessage(responseText);
 
   const encoder = new TextEncoder();
-
-  let fullResponse = "";
-  const stream = new ReadableStream({
-    async start(controller) {
-      const model = new ChatOpenAI({
-        model: "gpt-4.1-mini",
-        openAIApiKey: process.env.OPENAI_API_KEY,
-        streaming: true,
-        callbacks: [
-          {
-            handleLLMNewToken(token: string) {
-              fullResponse += token;
-              controller.enqueue(encoder.encode(token));
-            },
-            async handleLLMEnd() {
-              chatHistory.addAIChatMessage(fullResponse);
-              controller.close();
-            },
-            handleLLMError(err) {
-              controller.enqueue(encoder.encode(`[ERROR]: ${err.message}`));
-              controller.close();
-            },
-          },
-        ],
-      });
-
-      const agentCheckpointer = new MemorySaver();
-      const agent = createReactAgent({
-        llm: model,
-        tools: [],
-        checkpointSaver: agentCheckpointer,
-      });
-
-      await agent.invoke({ messages: formattedPrompt });
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(responseText));
+      controller.close();
     },
   });
-
-  return stream;
 };

@@ -16,10 +16,11 @@ export default async function RootLayout({
   params,
 }: {
   children: React.ReactElement;
-  params: { murderId: string };
+  params: Promise<{ murderId: string }>;
 }) {
+  const { murderId } = await params;
   const murder = await db.query.murders.findFirst({
-    where: eq(murders.id, Number(params.murderId)),
+    where: eq(murders.id, Number(murderId)),
   });
   if (!murder) {
     return <div>No murder found</div>;
