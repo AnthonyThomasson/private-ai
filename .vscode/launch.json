@@ -9,16 +9,13 @@
       "runtimeExecutable": "tsx",
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "skipFiles": [
-        "<node_internals>/**",
-        "${workspaceFolder}/node_modules/**"
-      ]
+      "skipFiles": ["<node_internals>/**", "${workspaceFolder}/node_modules/**"]
     },
     {
       "name": "Next.js: Server-side",
       "type": "node",
       "request": "launch",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "pnpm",
       "runtimeArgs": ["run", "dev"],
       "console": "integratedTerminal",
       "env": {
@@ -29,7 +26,8 @@
     {
       "name": "Next.js: Client-side (Chrome)",
       "type": "chrome",
-      "request": "attach",
+      "request": "launch",
+      "url": "http://localhost:3000",
       "webRoot": "${workspaceFolder}",
       "sourceMaps": true,
       "trace": true

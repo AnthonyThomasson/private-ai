@@ -31,5 +31,5 @@ fi
 rm -rf local.db
 rm -rf public/story/
 
-yarn install
-yarn db:push
+pnpm install
+pnpm db:push
