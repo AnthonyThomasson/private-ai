@@ -11,7 +11,21 @@ import { createDeepAgent } from "deepagents";
 import { generateImageForMurder } from "../../painter/murder";
 import { generateImageForPerson } from "../../painter/person";
 
-const SYSTEM_PROMPT = `You are generating a murder mystery scenario. Use write_todos to plan your work, then execute each step.
+const SYSTEM_PROMPT = `You are generating a murder mystery scenario.
+
+## Step 0: Plan Your Chain FIRST (mandatory)
+Before calling any tools, use write_todos to lay out:
+  a) Murder setting and method
+  b) Victim name (DEAD — never create any clue link for the victim)
+  c) Perpetrator name (kept secret in all clues)
+  d) The FULL investigation chain: InitialSuspect → SuspectB → [SuspectC] → Perpetrator
+  e) For each bridge clue: who reveals it AND who it unlocks (two people per bridge clue)
+  f) Which 1–2 crime-scene clues link to initial suspects (visible from start)
+
+CHAIN RULES — non-negotiable:
+- Chain depth MUST be ≥ 2 suspects before the perpetrator is reachable
+- Every non-initial suspect must be unlocked by a bridge clue from the preceding suspect
+- The victim MUST NOT appear in any clue link — they are dead and cannot be interviewed
 
 ## Setup
 1. Invent a realistic murder: a specific type (poisoning, stabbing, etc.) and location on Earth
@@ -40,10 +54,12 @@ This is how new suspects unlock. If a clue only links to one person, no new susp
 
 ### Crime-scene clues (VISIBLE from the start)
 - Physical evidence at the scene that immediately points to 1–2 initial suspects
-- Link each to ONE living suspect (NOT the victim — the victim is dead and cannot be interviewed)
+- Link each to ONE living suspect (NOT the victim — the victim is dead, excluded from sidebar)
+  ❌ WRONG: linked to the victim — useless, victim cannot be interviewed
+  ✅ RIGHT: linked to a living suspect who was at or near the scene
 - Mark each visible with mark_clue_visible
 - The linked person's relation = what they know and will share when interviewed
-- The victim's connections belong in the clue DESCRIPTION itself, not in a clue link
+- Mention the victim in the clue DESCRIPTION if needed, but never in a clue link
 
 ### Bridge clues (HIDDEN — unlocked through interviews)
 - Each bridge clue MUST link to BOTH: (a) the informant, AND (b) the next suspect
@@ -76,6 +92,14 @@ This is how new suspects unlock. If a clue only links to one person, no new susp
    - Person B.relation: "Recognized the handwriting from a note they'd seen before"
    - Perpetrator.relation: "Wrote the letter under a false name three weeks before the murder"
    Person B reveals C3 → Perpetrator becomes discoverable
+
+## Final Check (BEFORE finishing)
+Verify every rule is met before stopping:
+- [ ] No clue links on the victim
+- [ ] Every non-initial suspect has a bridge clue that links them to their predecessor
+- [ ] The perpetrator's clue is linked to the second-to-last suspect
+- [ ] Crime-scene clues are marked visible with mark_clue_visible
+- [ ] Chain depth from crime scene to perpetrator is ≥ 2 suspects
 
 ## Rules
 - clue.description = the observable fact the player sees. Always looks suspicious. Never reveals
@@ -336,44 +360,170 @@ const buildTools = () => {
   };
 };
 
-export const generateMurder = async () => {
-  const { tools, getMurderId } = buildTools();
-
-  const agent = createDeepAgent({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tools: tools as any,
-    model: "openai:gpt-4.1-mini",
-    systemPrompt: SYSTEM_PROMPT,
+const validateChain = async (
+  murderId: number,
+  perpetratorId: number,
+  victimId: number,
+): Promise<{
+  valid: boolean;
+  reason?: string;
+  depth?: Map<number, number>;
+}> => {
+  const allLinks = await db.query.clueLinks.findMany({
+    where: eq(clueLinks.murderId, murderId),
   });
 
-  console.log("🌱 Deep agent generating murder mystery...");
-  await agent.invoke({
-    messages: [{ role: "user", content: "Generate a murder mystery." }],
-  });
+  // Build: clueId → set of personIds linked to it
+  const clueToPersons = new Map<number, Set<number>>();
+  for (const link of allLinks) {
+    if (!clueToPersons.has(link.clueId!))
+      clueToPersons.set(link.clueId!, new Set());
+    clueToPersons.get(link.clueId!)!.add(link.personId!);
+  }
 
-  const murderId = getMurderId();
+  // Initial suspects: visible links on non-victims
+  const visiblePersonIds = new Set(
+    allLinks
+      .filter((l) => l.isVisible === 1 && l.personId !== victimId)
+      .map((l) => l.personId!),
+  );
 
-  console.log("🖼️  Painting artwork");
-  await generateImageForMurder(murderId);
+  if (visiblePersonIds.size === 0) {
+    return {
+      valid: false,
+      reason: "No initial suspects — all visible clue links are on the victim",
+    };
+  }
 
-  const peopleInMurder = await db.query.people.findMany({
-    where: eq(people.murderId, murderId),
-  });
-  await Promise.all(peopleInMurder.map((p) => generateImageForPerson(p.id)));
+  // Build: personId → clueIds they're linked to
+  const personToClueIds = new Map<number, number[]>();
+  for (const link of allLinks) {
+    if (!personToClueIds.has(link.personId!))
+      personToClueIds.set(link.personId!, []);
+    personToClueIds.get(link.personId!)!.push(link.clueId!);
+  }
 
-  return db.query.murders.findFirst({
-    where: eq(murders.id, murderId),
-    with: {
-      location: true,
-      victim: true,
-      perpetrator: true,
-      people: true,
-      clueLinks: {
-        with: {
-          clue: true,
-          person: true,
+  // BFS through clue graph
+  const depth = new Map<number, number>();
+  const queue: number[] = [];
+  for (const p of visiblePersonIds) {
+    depth.set(p, 0);
+    queue.push(p);
+  }
+
+  while (queue.length > 0) {
+    const personId = queue.shift()!;
+    const d = depth.get(personId)!;
+    for (const clueId of personToClueIds.get(personId) ?? []) {
+      for (const nextPerson of clueToPersons.get(clueId) ?? []) {
+        if (!depth.has(nextPerson) && nextPerson !== victimId) {
+          depth.set(nextPerson, d + 1);
+          queue.push(nextPerson);
+        }
+      }
+    }
+  }
+
+  if (!depth.has(perpetratorId)) {
+    return {
+      valid: false,
+      reason: "Perpetrator is not reachable from crime-scene clues",
+    };
+  }
+  const perpetratorDepth = depth.get(perpetratorId)!;
+  if (perpetratorDepth < 2) {
+    return {
+      valid: false,
+      reason: `Perpetrator only ${perpetratorDepth} step(s) from crime scene — need ≥ 2`,
+    };
+  }
+
+  return { valid: true, depth };
+};
+
+const cleanupMurder = async (murderId: number) => {
+  // Nullify FK references on murder first to avoid circular FK violations
+  await db
+    .update(murders)
+    .set({ victimId: null, perpetratorId: null, locationId: null })
+    .where(eq(murders.id, murderId));
+  await db.delete(clueLinks).where(eq(clueLinks.murderId, murderId));
+  await db.delete(clues).where(eq(clues.murderId, murderId));
+  // Delete people before locations (people hold the locationId FK)
+  await db.delete(people).where(eq(people.murderId, murderId));
+  await db.delete(locations).where(eq(locations.murderId, murderId));
+  await db.delete(murders).where(eq(murders.id, murderId));
+};
+
+export const generateMurder = async (maxRetries = 3) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const { tools, getMurderId } = buildTools();
+
+    const agent = createDeepAgent({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      tools: tools as any,
+      model: "openai:gpt-4.1-mini",
+      systemPrompt: SYSTEM_PROMPT,
+    });
+
+    console.log(
+      `🌱 Deep agent generating murder mystery... (attempt ${attempt}/${maxRetries})`,
+    );
+    await agent.invoke({
+      messages: [{ role: "user", content: "Generate a murder mystery." }],
+    });
+
+    const murderId = getMurderId();
+    const murder = await db.query.murders.findFirst({
+      where: eq(murders.id, murderId),
+    });
+
+    const validation = await validateChain(
+      murderId,
+      murder!.perpetratorId!,
+      murder!.victimId!,
+    );
+
+    if (!validation.valid) {
+      console.warn(
+        `⚠️  Attempt ${attempt}: invalid chain — ${validation.reason}. Cleaning up...`,
+      );
+      await cleanupMurder(murderId);
+      if (attempt === maxRetries) {
+        throw new Error(
+          `Failed to generate a valid murder mystery after ${maxRetries} attempts`,
+        );
+      }
+      continue;
+    }
+
+    const perpetratorDepth = validation.depth!.get(murder!.perpetratorId!)!;
+    console.log(
+      `✅ Chain validated — perpetrator is ${perpetratorDepth} step(s) from crime scene`,
+    );
+
+    console.log("🖼️  Painting artwork");
+    await generateImageForMurder(murderId);
+
+    const peopleInMurder = await db.query.people.findMany({
+      where: eq(people.murderId, murderId),
+    });
+    await Promise.all(peopleInMurder.map((p) => generateImageForPerson(p.id)));
+
+    return db.query.murders.findFirst({
+      where: eq(murders.id, murderId),
+      with: {
+        location: true,
+        victim: true,
+        perpetrator: true,
+        people: true,
+        clueLinks: {
+          with: {
+            clue: true,
+            person: true,
+          },
         },
       },
-    },
-  });
+    });
+  }
 };
