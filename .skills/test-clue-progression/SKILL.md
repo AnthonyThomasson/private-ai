@@ -24,12 +24,24 @@ End-to-end test: suspects unlock through interviews, perpetrator hidden at first
 ## Workflow
 
 1. **Reset data** — Read and follow **murder-db-seed** (`pnpm db:seed`). Wait for generation to finish.
-2. **Inspect DB** — Use **murder-db-inspect** to get `murder_id`, confirm perpetrator is not in the visible-suspects query, optionally map the clue graph.
+2. **Inspect DB** — Use **murder-db-inspect** to get `murder_id`, confirm perpetrator is not in the visible-suspects query. **Map the clue graph** — you need `clue.description`, `pe.name`, and `cl.is_visible` to know what to ask each suspect.
 3. **Browser** — Use **cursor-ide-browser** (MCP) or **claude browser**: open `/`, open the murder → `/murders/<id>/clues`. Sidebar must not list the perpetrator.
 4. **Stress** — **murder-cheat-stress**: set stress on suspects you will interview (e.g. 50); perpetrator 100 when testing confession.
-5. **Interviews** — Use **cursor-ide-browser** (MCP) or **claude browser**: open suspects, ask about their clue ties; expect `reveal_clue_link` and new sidebar entries when stress ≥ 31.
+5. **Interviews** — Follow the logical progression below.
 
-**Non-linear path**: Interview 2+ initial suspects, follow red herrings, only then chain to the perpetrator; aim for 3+ distinct suspects before the perpetrator appears.
+### Logical progression: clue discovery → conversation
+
+Each reveal must flow naturally from the conversation:
+
+| Step | Action | Conversation tie |
+|------|--------|------------------|
+| A | **Ask the right thing** | Use the clue graph: each `clue_links.relation` is what that person knows. Phrase your question to *touch* that relation (e.g. relation = "Saw someone arguing with the victim" → ask about the argument, the victim, who was there). |
+| B | **Clue revealed** | Suspect responds and calls `reveal_clue_link`; the clue’s *other* links become visible. Sidebar gains new suspect(s). |
+| C | **Verify sidebar** | Snapshot or refresh; confirm the new person appears in the sidebar. |
+| D | **Continue the chain** | Open the *newly visible* suspect. Ask about *their* relation to the revealed clue — the conversation should logically follow from what the informant just said (e.g. "I heard you were seen near the building that night"). |
+| E | **Repeat** | Each reveal unlocks the next suspect; the conversation chain mirrors the clue graph. |
+
+**Non-linear path**: Interview 2+ initial suspects, follow red herrings (dead-end clues), only then chain to the perpetrator; aim for 3+ distinct suspects before the perpetrator appears.
 
 ## Validation checklist
 
@@ -37,6 +49,7 @@ End-to-end test: suspects unlock through interviews, perpetrator hidden at first
 - [ ] ≥3 suspects interviewed before perpetrator visible
 - [ ] Non-linear path; dead ends / red herrings
 - [ ] Perpetrator appeared only after another suspect’s reveal
+- [ ] Each reveal followed a logical conversation (question touched clue relation → reveal → sidebar update → next suspect asked about their relation)
 - [ ] At stress 100, perpetrator confessed
 
 ## Troubleshooting
@@ -45,5 +58,5 @@ End-to-end test: suspects unlock through interviews, perpetrator hidden at first
 |---------|--------|
 | Perpetrator visible at start | **murder-db-inspect** visible-suspects query; `clue_links.is_visible` on perpetrator links should be 0 |
 | Bad / stale data | **murder-db-seed** again |
-| Suspect won’t reveal | **murder-cheat-stress** (≥31); questions tied to their clue links from clue graph |
+| Suspect won’t reveal | **murder-cheat-stress** (≥31); ask about their `clue_links.relation` — question must touch the relation to trigger reveal |
 | No new suspects | Bridge clue must link to another person — clue graph query in **murder-db-inspect** |

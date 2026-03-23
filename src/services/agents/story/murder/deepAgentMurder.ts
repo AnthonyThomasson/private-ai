@@ -18,13 +18,18 @@ const SYSTEM_PROMPT = `You are generating a murder mystery scenario.
 Before calling any tools, use write_todos to lay out:
   a) Murder setting and method
   b) Victim name (DEAD — never create any clue link for the victim)
-  c) Perpetrator name (kept secret in all clues)
-  d) The FULL investigation chain: InitialSuspect → SuspectB → [SuspectC] → Perpetrator
-  e) For each bridge clue: who reveals it AND who it unlocks (two people per bridge clue)
-  f) Which 1–2 crime-scene clues link to initial suspects (visible from start)
+  c) Perpetrator name (kept secret in ALL clues and relations — never write this name in any clue text)
+  d) The FULL investigation chain: InitialSuspect → SuspectB → SuspectC → Perpetrator
+     (This means ≥ 2 intermediate suspects between crime scene and perpetrator)
+  e) At least 1 dead-end branch: an initial suspect who leads to a red herring, not the perpetrator
+  f) For each bridge clue: who reveals it AND who it unlocks (two people per bridge clue)
+  g) Which 1–2 crime-scene clues link to initial suspects (visible from start)
 
 CHAIN RULES — non-negotiable:
-- Chain depth MUST be ≥ 2 suspects before the perpetrator is reachable
+- Chain depth MUST be ≥ 2 intermediate suspects before the perpetrator is reachable
+  Example of VALID chain: Crime scene → PersonA → PersonB → Perpetrator (depth 2 ✅)
+  Example of INVALID chain: Crime scene → PersonA → Perpetrator (depth 1 ❌ — too short, retry)
+- At least one initial suspect MUST lead to a dead-end (red herring) that never reaches the perpetrator
 - Every non-initial suspect must be unlocked by a bridge clue from the preceding suspect
 - The victim MUST NOT appear in any clue link — they are dead and cannot be interviewed
 
@@ -78,10 +83,11 @@ This is how new suspects unlock. If a clue only links to one person, no new susp
 - The preceding suspect reveals it; the perpetrator becomes discoverable
 - The perpetrator's relation = the damning connection that breaks the case
 
-### Dead-end clues (HIDDEN — optional misdirection)
-- A bridge clue that leads to a red herring suspect
+### Dead-end clues (HIDDEN — REQUIRED, at least one)
+- A bridge clue from an initial suspect that leads to a red herring suspect, NOT toward the perpetrator
 - The red herring's relation sounds suspicious but, when followed up in conversation, goes nowhere
 - Must still link to two people (informant + red herring) so the red herring unlocks properly
+- This ensures the player cannot trivially follow a single linear path to the perpetrator
 
 ## Example Chain (follow this structure)
 1. C1 (visible): "A monogrammed handkerchief near the body" → linked to Person A
