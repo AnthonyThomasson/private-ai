@@ -1,6 +1,6 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
-import { pickRandom } from "../../../utils/randomModifier";
+import { pickRandom } from "@/services/agents/utils/randomModifier";
 
 type Context = {
   location: string | null;

@@ -21,14 +21,14 @@ AI-powered interactive murder mystery game. Users investigate procedurally-gener
 
 ### Data Flow
 
-1. **Murder Generation**: `services/agents/story/murder/` uses OpenAI GPT-4.1-mini via the `deepagents` library to generate a complete murder scenario — victim, perpetrator, supporting characters, locations, and an interconnected clue chain.
+1. **Murder Generation**: `services/agents/story/` uses OpenAI GPT-4.1-mini via the `deepagents` library to generate a complete murder scenario — victim, perpetrator, supporting characters, locations, and an interconnected clue chain.
 2. **Suspect Interviews**: `POST /api/messages` drives the core gameplay. The suspect agent (`services/agents/suspect/suspect.ts`) roleplays NPCs during chat, tracking a stress level (0–100). As stress rises through questioning, suspects reveal clues. At 100, the perpetrator confesses.
 3. **Clue Progression**: Clues are linked in a graph (`clueLink` table). Revealing one clue can unlock related clues and point to new suspects.
 
 ### Key Directories
 
 - `src/app/` — Next.js App Router pages. The interview UI lives at `/murders/[murderId]/person/[personId]`.
-- `src/services/agents/` — All AI agent logic. Subdirectories: `painter/` (DALL-E images), `story/` (generation), `suspect/` (interview roleplay).
+- `src/services/agents/` — All AI agent logic. Subdirectories: `story/` (murder generation, evaluators, painter for DALL-E images), `suspect/` (interview roleplay).
 - `src/db/` — Drizzle ORM schema and models. Database is SQLite (`local.db`), configured via `DB_FILE_NAME` env var.
 - `src/components/` — React components organized by feature: `chat/`, `clues/`, `people/`.
 - `.skills/` — Custom AI assistant skills for development workflows (see below).

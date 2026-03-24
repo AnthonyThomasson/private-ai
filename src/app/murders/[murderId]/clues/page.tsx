@@ -7,7 +7,7 @@ import { murders } from "@/db/models/murders";
 export default async function Page({
   params,
 }: {
-  params: { murderId: string };
+  params: Promise<{ murderId: string }>;
 }) {
   const murderId = (await params).murderId;
 

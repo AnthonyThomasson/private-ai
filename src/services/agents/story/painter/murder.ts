@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import fs from "fs";
 import OpenAI from "openai";
 import path from "path";
-import { callWithRetry } from "../utils";
+import { callWithRetry } from "@/services/agents/utils";
 
 export const generateImageForMurder = async (murderId: number) => {
   if (process.env.GENERATE_IMAGES === "false") return;

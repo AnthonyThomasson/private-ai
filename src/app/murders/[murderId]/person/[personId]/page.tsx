@@ -8,7 +8,7 @@ import { cookies } from "next/headers";
 export default async function Page({
   params,
 }: {
-  params: { personId: string };
+  params: Promise<{ murderId: string; personId: string }>;
 }) {
   const userToken = (await cookies()).get("user_token")?.value;
   if (!userToken) {

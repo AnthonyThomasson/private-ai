@@ -6,13 +6,13 @@ import { murders } from "@/db/models/murders";
 import { people } from "@/db/models/people";
 import { createDeepAgent } from "deepagents";
 import { eq } from "drizzle-orm";
-import { generateImageForMurder } from "../../../painter/murder";
-import { generateImageForPerson } from "../../../painter/person";
+import { generateImageForMurder } from "./painter/murder";
+import { generateImageForPerson } from "./painter/person";
 import { runChainFix } from "./evaluators/chainValidator/fixer";
 import { validateChain } from "./evaluators/chainValidator/index";
 import { runNarrativeFix } from "./evaluators/narrativeEvaluator/fixer";
 import { verifyNarrative } from "./evaluators/narrativeEvaluator/index";
-import { SYSTEM_PROMPT, buildTools } from "./generator/tools";
+import { SYSTEM_PROMPT, buildTools } from "./tools";
 import { getMurderSeed } from "./seed";
 
 export const cleanupMurder = async (murderId: number) => {

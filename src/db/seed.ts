@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { generateMurder } from "@/services/agents/story/murder/generator";
+import { generateMurder } from "@/services/agents/story";
 import { sql } from "drizzle-orm";
 
 export const seed = async () => {
