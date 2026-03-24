@@ -1,20 +1,14 @@
 ---
 name: test-clue-progression
-description: Test murder mystery clue progression end-to-end. Orchestrates murder-db-seed, murder-db-inspect, murder-cheat-stress, and browser verification on localhost:3000. Use when testing clue reveal flow, debugging investigation chains, or validating murder mystery gameplay.
+description: End-to-end murder mystery clue progression test. Orchestrates murder-db-seed, murder-db-inspect, murder-cheat-stress, and browser verification on localhost:3000. Use when testing clue reveal flow, debugging investigation chains, or validating murder mystery gameplay.
+model: inherit
 ---
 
 # Test Clue Progression
 
 End-to-end test: suspects unlock through interviews, perpetrator hidden at first, non-linear path (multiple suspects, dead ends).
 
-## Related skills
-
-| Skill | Role |
-|-------|------|
-| **murder-db-seed** | Clear DB and generate one fresh murder before the test |
-| **murder-db-inspect** | `sqlite3` path + queries for murder id, visible suspects, clue graph |
-| **murder-cheat-stress** | Raise `people.stress` to force reveals / confession |
-| **cursor-ide-browser** (MCP) / **claude browser** | Navigate app, snapshot sidebar, click suspects, chat |
+Use skills **murder-db-seed**, **murder-db-inspect**, **murder-cheat-stress**, and **cursor-ide-browser** (MCP) or **claude browser** as needed.
 
 ## Prerequisites
 
@@ -42,7 +36,7 @@ Each reveal must flow naturally from the conversation:
 | Step | Action | Conversation tie |
 |------|--------|------------------|
 | A | **Ask the right thing** | Use the clue graph: each `clue_links.relation` is what that person knows. Phrase your question to *touch* that relation (e.g. relation = "Saw someone arguing with the victim" → ask about the argument, the victim, who was there). |
-| B | **Clue revealed** | Suspect responds and calls `reveal_clue_link`; the clue’s *other* links become visible. Sidebar gains new suspect(s). |
+| B | **Clue revealed** | Suspect responds and calls `reveal_clue_link`; the clue's *other* links become visible. Sidebar gains new suspect(s). |
 | C | **Verify sidebar** | Snapshot or refresh; confirm the new person appears in the sidebar. |
 | D | **Continue the chain** | Open the *newly visible* suspect. Ask about *their* relation to the revealed clue — the conversation should logically follow from what the informant just said (e.g. "I heard you were seen near the building that night"). |
 | E | **Repeat** | Each reveal unlocks the next suspect; the conversation chain mirrors the clue graph. |
@@ -54,12 +48,12 @@ Each reveal must flow naturally from the conversation:
 - [ ] Perpetrator not visible at start
 - [ ] ≥3 suspects interviewed before perpetrator visible
 - [ ] Non-linear path; dead ends / red herrings
-- [ ] Perpetrator appeared only after another suspect’s reveal
+- [ ] Perpetrator appeared only after another suspect's reveal
 - [ ] Each reveal followed a logical conversation (question touched clue relation → reveal → sidebar update → next suspect asked about their relation)
 - [ ] At stress 100, perpetrator confessed
 - [ ] Perpetrator has a non-null, specific motive (not generic)
 - [ ] Motive is consistent with the crime scene and clue chain
-- [ ] At stress 100, perpetrator’s confession references the motive (the "why")
+- [ ] At stress 100, perpetrator's confession references the motive (the "why")
 
 ## Troubleshooting
 
@@ -67,5 +61,5 @@ Each reveal must flow naturally from the conversation:
 |---------|--------|
 | Perpetrator visible at start | **murder-db-inspect** visible-suspects query; `clue_links.is_visible` on perpetrator links should be 0 |
 | Bad / stale data | **murder-db-seed** again |
-| Suspect won’t reveal | **murder-cheat-stress** (≥31); ask about their `clue_links.relation` — question must touch the relation to trigger reveal |
+| Suspect won't reveal | **murder-cheat-stress** (≥31); ask about their `clue_links.relation` — question must touch the relation to trigger reveal |
 | No new suspects | Bridge clue must link to another person — clue graph query in **murder-db-inspect** |

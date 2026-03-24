@@ -32,6 +32,7 @@ AI-powered interactive murder mystery game. Users investigate procedurally-gener
 - `src/db/` — Drizzle ORM schema and models. Database is SQLite (`local.db`), configured via `DB_FILE_NAME` env var.
 - `src/components/` — React components organized by feature: `chat/`, `clues/`, `people/`.
 - `.skills/` — Custom AI assistant skills for development workflows (see below).
+- `.agents/` — Custom subagents for Cursor and Claude Code (see below).
 
 ### Database Schema
 
@@ -61,4 +62,10 @@ The `.skills/` directory contains assistant workflows for testing and debugging:
 - `/murder-db-seed` — Wipe and reseed the DB with a fresh AI-generated murder
 - `/murder-db-inspect` — Query the DB to inspect murders, clues, and perpetrator setup
 - `/murder-cheat-stress` — Manually set suspect stress in DB to force clue reveals or confession
+- `/evaluator-builder` — Story evaluator architecture; use when creating or modifying evaluators
+
+## Custom Agents
+
+The `.agents/` directory contains subagents for Cursor and Claude Code (synced to `.cursor/agents/` and `.claude/agents/`):
+
 - `/test-clue-progression` — End-to-end test of the clue reveal flow via browser + DB
