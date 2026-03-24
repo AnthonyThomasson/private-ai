@@ -23,6 +23,12 @@ const CREATE_PERSON_FIX_DESCRIPTION =
 const CREATE_CLUE_FIX_DESCRIPTION =
   "Create a new clue with links to people. Only use when the fix requires adding a bridge clue or dead-end clue that doesn't exist yet.";
 
+/**
+ * Builds the tool set for the murder generation agent and a getter for the
+ * murder ID (set when create_murder_scene runs). Used by generateMurder.
+ *
+ * @returns Object with tools array and getMurderId function
+ */
 export const buildTools = () => {
   let murderId: number | null = null;
 
@@ -46,6 +52,13 @@ export const buildTools = () => {
   return { tools, getMurderId };
 };
 
+/**
+ * Returns the tool set for chain and narrative fix agents. Includes chain
+ * state inspection, clue/link updates, and person/clue creation for fixes.
+ *
+ * @param murderId - The murder being fixed
+ * @returns Array of fix tools
+ */
 export const getFixTools = (murderId: number) => [
   createGetChainStateTool(murderId),
   createSetClueLinkVisibleTool(),

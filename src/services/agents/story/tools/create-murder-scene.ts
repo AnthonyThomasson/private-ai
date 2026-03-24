@@ -3,6 +3,7 @@ import { murders } from "@/db/models/murders";
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 
+/** Creates a tool that inserts the murder scene and invokes setMurderId with the new ID. */
 export const createCreateMurderSceneTool = (
   setMurderId: (id: number) => void,
 ) =>

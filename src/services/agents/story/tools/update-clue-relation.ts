@@ -4,6 +4,7 @@ import { tool } from "@langchain/core/tools";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+/** Creates a tool that updates a clue link's relation text. */
 export const createUpdateClueRelationTool = () =>
   tool(
     async ({

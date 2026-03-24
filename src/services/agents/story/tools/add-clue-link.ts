@@ -5,6 +5,7 @@ import { tool } from "@langchain/core/tools";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+/** Creates a tool that adds a link from an existing clue to a person. */
 export const createAddClueLinkTool = (murderId: number) =>
   tool(
     async ({

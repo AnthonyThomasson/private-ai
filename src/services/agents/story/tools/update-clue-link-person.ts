@@ -5,6 +5,7 @@ import { tool } from "@langchain/core/tools";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+/** Creates a tool that rewires a clue link to point to a different person. */
 export const createUpdateClueLinkPersonTool = () =>
   tool(
     async ({

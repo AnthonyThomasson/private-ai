@@ -1,10 +1,65 @@
 import { db } from "@/db";
 import { clueLinks } from "@/db/models/clueLink";
 import { clues } from "@/db/models/clues";
+import { murders } from "@/db/models/murders";
 import { people } from "@/db/models/people";
 import { eq } from "drizzle-orm";
+import { runChainFix } from "./fixer";
 
-export const validateChain = async (
+/**
+ * Validates the clue chain for a murder (ensures perpetrator is reachable from
+ * the crime scene through the clue graph) and runs fix attempts when invalid.
+ * Repeats until the chain is valid or the maximum number of fix attempts is
+ * exhausted. Each fix invokes the chain validator agent to repair missing or
+ * broken clue links.
+ *
+ * @param murderId - The murder to validate
+ * @param maxFixAttempts - Maximum number of fix iterations before giving up
+ * @param maxFixRecursionLimit - Recursion limit passed to the chain fix agent
+ * @returns Object with valid flag, the validation result (depth map etc.), and
+ *   the current murder record
+ */
+export async function validateAndFixChain(
+  murderId: number,
+  maxFixAttempts: number,
+  maxFixRecursionLimit: number,
+) {
+  let murder;
+  let validation;
+  let fix = 0;
+  while (true) {
+    murder = await db.query.murders.findFirst({
+      where: eq(murders.id, murderId),
+    });
+    validation = await validateChain(
+      murderId,
+      murder!.perpetratorId!,
+      murder!.victimId!,
+    );
+    if (validation.valid) break;
+    if (fix >= maxFixAttempts) break;
+    fix++;
+    console.warn(
+      `🔧 Fix attempt ${fix}/${maxFixAttempts}: ${validation.reason}`,
+    );
+    await runChainFix(murderId, validation.reason!, {
+      recursionLimit: maxFixRecursionLimit,
+    });
+  }
+  return { valid: validation.valid, validation, murder };
+}
+
+/**
+ * Validates that the perpetrator is reachable from crime-scene clues via the
+ * clue graph, at least 2 steps away, with dead-end branches. Also checks that
+ * the perpetrator's name does not leak into clue descriptions or relations.
+ *
+ * @param murderId - The murder to validate
+ * @param perpetratorId - The perpetrator's person ID
+ * @param victimId - The victim's person ID
+ * @returns Validation result with valid flag, reason if invalid, and depth map
+ */
+async function validateChain(
   murderId: number,
   perpetratorId: number,
   victimId: number,
@@ -12,7 +67,7 @@ export const validateChain = async (
   valid: boolean;
   reason?: string;
   depth?: Map<number, number>;
-}> => {
+}> {
   const allLinks = await db.query.clueLinks.findMany({
     where: eq(clueLinks.murderId, murderId),
   });
@@ -147,4 +202,4 @@ export const validateChain = async (
   }
 
   return { valid: true, depth };
-};
+}

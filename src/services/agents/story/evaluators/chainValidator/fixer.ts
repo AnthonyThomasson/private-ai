@@ -8,6 +8,15 @@ const SYSTEM_PROMPT = readFileSync(
   "utf-8",
 );
 
+/**
+ * Invokes the chain fix agent to repair a specific validation failure. The
+ * agent uses fix tools (update clues, add links, etc.) to address the given
+ * reason. Recursion limit errors are caught and logged as incomplete fixes.
+ *
+ * @param murderId - The murder to fix
+ * @param reason - The validation failure reason to fix
+ * @param opts - Optional recursion limit for the fix agent
+ */
 export const runChainFix = async (
   murderId: number,
   reason: string,

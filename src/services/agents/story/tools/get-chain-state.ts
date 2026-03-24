@@ -7,6 +7,7 @@ import { tool } from "@langchain/core/tools";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+/** Creates a tool that returns the full clue-chain state (people, clues, links) for a murder. */
 export const createGetChainStateTool = (murderId: number) =>
   tool(
     async () => {

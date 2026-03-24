@@ -13,6 +13,7 @@ const DEFAULT_LOCATION_DESCRIPTION =
 const FIX_LOCATION_DESCRIPTION =
   "A 1-sentence description of the physical space. Do NOT mention the person.";
 
+/** Creates a tool that inserts a person and location for a murder. Supports fix-specific options. */
 export const createCreatePersonTool = (
   getMurderId: () => number,
   options?: {

@@ -4,6 +4,7 @@ import { tool } from "@langchain/core/tools";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+/** Creates a tool that sets victim, perpetrator, and location on the murder. */
 export const createSetVictimAndPerpetratorTool = (getMurderId: () => number) =>
   tool(
     async ({

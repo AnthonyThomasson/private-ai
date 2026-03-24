@@ -7,6 +7,13 @@ import OpenAI from "openai";
 import path from "path";
 import { callWithRetry } from "@/services/agents/utils";
 
+/**
+ * Generates a DALL·E character headshot for a person and saves it to
+ * public/story/characters. Uses polaroid-on-bulletin style for victims.
+ * No-op if GENERATE_IMAGES is not "yes".
+ *
+ * @param personId - The person to generate an image for
+ */
 export const generateImageForPerson = async (personId: number) => {
   if (process.env.GENERATE_IMAGES === "false") return;
 

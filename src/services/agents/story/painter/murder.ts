@@ -6,6 +6,12 @@ import OpenAI from "openai";
 import path from "path";
 import { callWithRetry } from "@/services/agents/utils";
 
+/**
+ * Generates a DALL·E crime-scene image for a murder and saves it to
+ * public/story/murders. No-op if GENERATE_IMAGES is not "yes".
+ *
+ * @param murderId - The murder to generate an image for
+ */
 export const generateImageForMurder = async (murderId: number) => {
   if (process.env.GENERATE_IMAGES === "false") return;
 

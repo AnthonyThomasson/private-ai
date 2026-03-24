@@ -6,103 +6,26 @@ import { murders } from "@/db/models/murders";
 import { people } from "@/db/models/people";
 import { createDeepAgent } from "deepagents";
 import { eq } from "drizzle-orm";
-import { runChainFix } from "./evaluators/chainValidator/fixer";
-import { validateChain } from "./evaluators/chainValidator/index";
-import { runNarrativeFix } from "./evaluators/narrativeEvaluator/fixer";
-import { verifyNarrative } from "./evaluators/narrativeEvaluator/index";
+import { validateAndFixChain } from "./evaluators/chainValidator/index";
+import { validateAndFixNarrative } from "./evaluators/narrativeEvaluator/index";
 import { generateImageForMurder } from "./painter/murder";
 import { generateImageForPerson } from "./painter/person";
 import { getMurderSeed } from "./seed";
 import { SYSTEM_PROMPT, buildTools } from "./tools";
 
 /**
- * Validates the clue chain for a murder (ensures perpetrator is reachable from
- * the crime scene through the clue graph) and runs fix attempts when invalid.
- * Repeats until the chain is valid or the maximum number of fix attempts is
- * exhausted. Each fix invokes the chain validator agent to repair missing or
- * broken clue links.
+ * Generates a complete murder mystery via AI: victim, perpetrator, witnesses,
+ * locations, clues, and clue links. Runs chain validation (perpetrator reachable
+ * from crime scene) and narrative verification (coherent motives, descriptions).
+ * Applies fix attempts when validation fails. On success, generates DALL·E
+ * artwork for the crime scene and all characters.
  *
- * @param murderId - The murder to validate
- * @param maxFixAttempts - Maximum number of fix iterations before giving up
- * @param maxFixRecursionLimit - Recursion limit passed to the chain fix agent
- * @returns Object with valid flag, the validation result (depth map etc.), and
- *   the current murder record
+ * @param maxRetries - Number of full generation attempts before throwing
+ * @param maxFixAttempts - Fix iterations per validation step before retrying
+ * @param maxFixRecursionLimit - Recursion limit for fix agents
+ * @returns The created murder with location, victim, perpetrator, people, and
+ *   clue links. Throws if generation fails after all retries.
  */
-async function validateAndFixChain(
-  murderId: number,
-  maxFixAttempts: number,
-  maxFixRecursionLimit: number,
-) {
-  let murder;
-  let validation;
-  let fix = 0;
-  while (true) {
-    murder = await db.query.murders.findFirst({
-      where: eq(murders.id, murderId),
-    });
-    validation = await validateChain(
-      murderId,
-      murder!.perpetratorId!,
-      murder!.victimId!,
-    );
-    if (validation.valid) break;
-    if (fix >= maxFixAttempts) break;
-    fix++;
-    console.warn(
-      `🔧 Fix attempt ${fix}/${maxFixAttempts}: ${validation.reason}`,
-    );
-    await runChainFix(murderId, validation.reason!, {
-      recursionLimit: maxFixRecursionLimit,
-    });
-  }
-  return { valid: validation.valid, validation, murder };
-}
-
-/**
- * Verifies narrative coherence of a murder (clue descriptions, motives, story
- * consistency) and runs fix attempts when invalid. Repeats until the narrative
- * is valid or the maximum number of fix attempts is exhausted. Each fix
- * invokes the narrative evaluator agent to correct inconsistencies.
- *
- * @param murderId - The murder to verify
- * @param maxFixAttempts - Maximum number of fix iterations before giving up
- * @param maxFixRecursionLimit - Recursion limit passed to the narrative fix agent
- * @returns Object with valid flag and the narrative verification result
- */
-async function validateAndFixNarrative(
-  murderId: number,
-  maxFixAttempts: number,
-  maxFixRecursionLimit: number,
-) {
-  let narrative = await verifyNarrative(murderId);
-  let fix = 0;
-  while (!narrative.valid && fix < maxFixAttempts) {
-    fix++;
-    console.warn(
-      `🔧 Narrative fix attempt ${fix}/${maxFixAttempts}: ${narrative.reason}`,
-    );
-    await runNarrativeFix(murderId, narrative.reason!, {
-      recursionLimit: maxFixRecursionLimit,
-    });
-    narrative = await verifyNarrative(murderId);
-  }
-  return { valid: narrative.valid, narrative };
-}
-
-const cleanupMurder = async (murderId: number) => {
-  // Nullify FK references on murder first to avoid circular FK violations
-  await db
-    .update(murders)
-    .set({ victimId: null, perpetratorId: null, locationId: null })
-    .where(eq(murders.id, murderId));
-  await db.delete(clueLinks).where(eq(clueLinks.murderId, murderId));
-  await db.delete(clues).where(eq(clues.murderId, murderId));
-  // Delete people before locations (people hold the locationId FK)
-  await db.delete(people).where(eq(people.murderId, murderId));
-  await db.delete(locations).where(eq(locations.murderId, murderId));
-  await db.delete(murders).where(eq(murders.id, murderId));
-};
-
 export const generateMurder = async (
   maxRetries = 3,
   maxFixAttempts = 2,
@@ -209,4 +132,25 @@ export const generateMurder = async (
       },
     });
   }
+};
+
+/**
+ * Removes a murder and all related records from the database. Nullifies foreign
+ * keys on the murder row first, then deletes clue links, clues, people,
+ * locations, and finally the murder row to avoid circular FK violations.
+ *
+ * @param murderId - The murder to delete
+ */
+const cleanupMurder = async (murderId: number) => {
+  // Nullify FK references on murder first to avoid circular FK violations
+  await db
+    .update(murders)
+    .set({ victimId: null, perpetratorId: null, locationId: null })
+    .where(eq(murders.id, murderId));
+  await db.delete(clueLinks).where(eq(clueLinks.murderId, murderId));
+  await db.delete(clues).where(eq(clues.murderId, murderId));
+  // Delete people before locations (people hold the locationId FK)
+  await db.delete(people).where(eq(people.murderId, murderId));
+  await db.delete(locations).where(eq(locations.murderId, murderId));
+  await db.delete(murders).where(eq(murders.id, murderId));
 };

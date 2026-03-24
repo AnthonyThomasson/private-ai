@@ -4,6 +4,7 @@ import { tool } from "@langchain/core/tools";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+/** Creates a tool that updates a person's motive text. */
 export const createUpdatePersonMotiveTool = () =>
   tool(
     async ({ personId, motive }: { personId: number; motive: string }) => {

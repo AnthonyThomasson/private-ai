@@ -9,6 +9,37 @@ type Context = {
   motiveCategory: string | null;
 };
 
+/**
+ * Returns a random murder seed (type, location, era, motive category) for
+ * story generation. Shuffles the order of type/location and era/motive
+ * selection. Validates that the combination is possible before returning.
+ *
+ * @returns Seed object with type, location, era, motiveCategory
+ */
+export const getMurderSeed = async () => {
+  let context: Context = {
+    location: null,
+    type: null,
+    era: null,
+    motiveCategory: null,
+  };
+
+  let maxAttempts = 10;
+  do {
+    for (const fn of shuffle([getTypeOfMurder, getLocationOfMurder])) {
+      context = await fn(context);
+    }
+    maxAttempts--;
+  } while (!(await isItPossible(context)) && maxAttempts > 0);
+
+  for (const fn of shuffle([getEra, getMotiveCategory])) {
+    context = await fn(context);
+  }
+
+  return context;
+};
+
+/** Picks a random murder type via LLM and mutates context. */
 const getTypeOfMurder = async (context: Context): Promise<Context> => {
   const model = new ChatOpenAI({
     model: "gpt-4.1-mini",
@@ -43,6 +74,7 @@ const getTypeOfMurder = async (context: Context): Promise<Context> => {
   return context;
 };
 
+/** Picks a random location via LLM and mutates context. */
 const getLocationOfMurder = async (context: Context): Promise<Context> => {
   const model = new ChatOpenAI({
     model: "gpt-4.1-mini",
@@ -74,6 +106,7 @@ const getLocationOfMurder = async (context: Context): Promise<Context> => {
   return context;
 };
 
+/** Picks a random era via LLM and mutates context. */
 const getEra = async (context: Context): Promise<Context> => {
   const model = new ChatOpenAI({ model: "gpt-4.1-mini" });
   const schema = z.object({
@@ -90,6 +123,7 @@ const getEra = async (context: Context): Promise<Context> => {
   return context;
 };
 
+/** Picks a random motive category via LLM and mutates context. */
 const getMotiveCategory = async (context: Context): Promise<Context> => {
   const model = new ChatOpenAI({ model: "gpt-4.1-mini" });
   const schema = z.object({
@@ -106,6 +140,7 @@ const getMotiveCategory = async (context: Context): Promise<Context> => {
   return context;
 };
 
+/** Fisher–Yates shuffle. */
 function shuffle<T>(array: T[]): T[] {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -114,6 +149,7 @@ function shuffle<T>(array: T[]): T[] {
   return array;
 }
 
+/** Uses LLM to check if the murder type/location is feasible (single victim). */
 const isItPossible = async (context: Context): Promise<boolean> => {
   const model = new ChatOpenAI({
     model: "gpt-4.1-mini",
@@ -134,27 +170,4 @@ const isItPossible = async (context: Context): Promise<boolean> => {
     `Is it possible for a murder of type ${context.type} to happen in the location ${context.location}, and does the murder contain only one victim?`,
   );
   return isPossible.isPossible;
-};
-
-export const getMurderSeed = async () => {
-  let context: Context = {
-    location: null,
-    type: null,
-    era: null,
-    motiveCategory: null,
-  };
-
-  let maxAttempts = 10;
-  do {
-    for (const fn of shuffle([getTypeOfMurder, getLocationOfMurder])) {
-      context = await fn(context);
-    }
-    maxAttempts--;
-  } while (!(await isItPossible(context)) && maxAttempts > 0);
-
-  for (const fn of shuffle([getEra, getMotiveCategory])) {
-    context = await fn(context);
-  }
-
-  return context;
 };

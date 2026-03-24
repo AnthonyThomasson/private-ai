@@ -14,6 +14,7 @@ const DEFAULT_RETRY_MSG =
 const FIX_RETRY_MSG =
   "RETRY: personId ${personId} does not exist. Use create_person first.";
 
+/** Creates a tool that inserts a clue and links it to people. Supports fix-specific options. */
 export const createCreateClueTool = (
   getMurderId: () => number,
   options?: {

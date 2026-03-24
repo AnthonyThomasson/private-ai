@@ -8,6 +8,15 @@ const SYSTEM_PROMPT = readFileSync(
   "utf-8",
 );
 
+/**
+ * Invokes the narrative fix agent to correct a specific narrative coherence
+ * failure. The agent uses fix tools to address the given reason. Recursion
+ * limit errors are caught and logged as incomplete fixes.
+ *
+ * @param murderId - The murder to fix
+ * @param reason - The narrative failure reason to fix
+ * @param opts - Optional recursion limit for the fix agent
+ */
 export const runNarrativeFix = async (
   murderId: number,
   reason: string,

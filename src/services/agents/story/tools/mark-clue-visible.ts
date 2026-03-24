@@ -4,6 +4,7 @@ import { tool } from "@langchain/core/tools";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+/** Creates a tool that marks a clue link as visible at the initial crime scene. */
 export const createMarkClueVisibleTool = () =>
   tool(
     async ({ clueLinkId }: { clueLinkId: number }) => {

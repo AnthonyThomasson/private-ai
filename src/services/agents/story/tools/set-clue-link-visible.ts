@@ -4,6 +4,7 @@ import { tool } from "@langchain/core/tools";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+/** Creates a tool that sets a clue link's visibility (true/false). */
 export const createSetClueLinkVisibleTool = () =>
   tool(
     async ({
