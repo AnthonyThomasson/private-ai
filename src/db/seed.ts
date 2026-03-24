@@ -1,6 +1,6 @@
 import { db } from "@/db";
+import { generateMurder } from "@/services/agents/story/murder/generator";
 import { sql } from "drizzle-orm";
-import { generateMurder } from "@/services/agents/story/murder/deepAgentMurder";
 
 export const seed = async () => {
   console.log("🌱 Clearing database...");

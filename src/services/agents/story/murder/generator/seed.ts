@@ -1,6 +1,6 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
-import { pickRandom } from "../../utils/randomModifier";
+import { pickRandom } from "../../../utils/randomModifier";
 
 type Context = {
   location: string | null;
@@ -29,13 +29,13 @@ const getTypeOfMurder = async (context: Context): Promise<Context> => {
   if (context.location) {
     murderTypes = await structuredLlm.invoke(
       `Generate a list of 20 types of murders with one victim that could happen in a realistic story
-      on earth in the location ${context.location}. Do not include legal types of murder. Describe 
+      on earth in the location ${context.location}. Do not include legal types of murder. Describe
       each type in no more than 5 words. Include a variety in the ways the death could have occurred.`,
     );
   } else {
     murderTypes = await structuredLlm.invoke(
       `Generate a list of 20 types of murders with one victim that could happen in a realistic story on
-       earth. Do not include legal types of murder. Describe each type in no more than 5 words. Include 
+       earth. Do not include legal types of murder. Describe each type in no more than 5 words. Include
        a variety in the ways the death could have occurred.`,
     );
   }
@@ -135,6 +135,7 @@ const isItPossible = async (context: Context): Promise<boolean> => {
   );
   return isPossible.isPossible;
 };
+
 export const getMurderSeed = async () => {
   let context: Context = {
     location: null,
