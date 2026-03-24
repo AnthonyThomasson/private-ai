@@ -49,8 +49,8 @@ Each reveal must flow naturally from the conversation:
 | Step | Action                  | Conversation tie                                                                                                                                                                                                                     |
 | ---- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | A    | **Ask the right thing** | Use the clue graph: each `clue_links.relation` is what that person knows. Phrase your question to _touch_ that relation (e.g. relation = "Saw someone arguing with the victim" → ask about the argument, the victim, who was there). |
-| B    | **Clue revealed**       | Suspect responds and calls `reveal_clue_link`; the clue's _other_ links become visible. Sidebar gains new suspect(s).                                                                                                                |
-| C    | **Verify sidebar**      | Snapshot or refresh; confirm the new person appears in the sidebar.                                                                                                                                                                  |
+| B    | **Clue revealed**       | Suspect responds and calls `reveal_clue_link`; the clue's _other_ links become visible. Sidebar gains new suspect(s). The informant's messages must logically give the user knowledge of the new suspect (e.g. by name, role, or description) — the user should not discover someone they had no prior mention of. |
+| C    | **Verify sidebar**      | Snapshot or refresh; confirm the new person appears in the sidebar. Verify the prior conversation justified their appearance (the user would reasonably know who they are from the messages).                                                                                                              |
 | D    | **Continue the chain**  | Open the _newly visible_ suspect. Ask about _their_ relation to the revealed clue — the conversation should logically follow from what the informant just said (e.g. "I heard you were seen near the building that night").          |
 | E    | **Repeat**              | Each reveal unlocks the next suspect; the conversation chain mirrors the clue graph.                                                                                                                                                 |
 
@@ -67,6 +67,7 @@ Each reveal must flow naturally from the conversation:
 - [ ] Non-linear path; dead ends / red herrings
 - [ ] Perpetrator appeared only after another suspect's reveal
 - [ ] Each reveal followed a logical conversation (question touched clue relation → reveal → sidebar update → next suspect asked about their relation)
+- [ ] When a new suspect became visible, the prior messages gave the user logical knowledge of that suspect (e.g. name, role, or clear description) — no "magic" discoveries
 - [ ] At stress 100, perpetrator confessed
 - [ ] Perpetrator has a non-null, specific motive (not generic)
 - [ ] Motive is consistent with the crime scene and clue chain
@@ -80,6 +81,7 @@ Each reveal must flow naturally from the conversation:
 | Bad / stale data             | **murder-db-seed** again                                                                                                  |
 | Suspect won't reveal         | **murder-cheat-stress** (≥31); ask about their `clue_links.relation` — question must touch the relation to trigger reveal |
 | No new suspects              | Bridge clue must link to another person — clue graph query in **murder-db-inspect**                                       |
+| New suspect appears unmentioned | The informant should name or describe them before reveal — if not, the clue/relation may be too vague; reseed or check agent prompts |
 | No CSI at crime scene        | Reseed — chain validator now enforces this; if it persists, check `type` column exists in DB (`pnpm db:push`)             |
 | CSI is the perpetrator       | Chain validator prevents this; reseed if it slipped through a stale DB                                                    |
 | CSI not revealing freely     | CSI should reveal at any stress level — check `type='csi'` is set correctly in the DB for that person                     |
