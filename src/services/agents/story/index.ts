@@ -6,16 +6,90 @@ import { murders } from "@/db/models/murders";
 import { people } from "@/db/models/people";
 import { createDeepAgent } from "deepagents";
 import { eq } from "drizzle-orm";
-import { generateImageForMurder } from "./painter/murder";
-import { generateImageForPerson } from "./painter/person";
 import { runChainFix } from "./evaluators/chainValidator/fixer";
 import { validateChain } from "./evaluators/chainValidator/index";
 import { runNarrativeFix } from "./evaluators/narrativeEvaluator/fixer";
 import { verifyNarrative } from "./evaluators/narrativeEvaluator/index";
-import { SYSTEM_PROMPT, buildTools } from "./tools";
+import { generateImageForMurder } from "./painter/murder";
+import { generateImageForPerson } from "./painter/person";
 import { getMurderSeed } from "./seed";
+import { SYSTEM_PROMPT, buildTools } from "./tools";
 
-export const cleanupMurder = async (murderId: number) => {
+/**
+ * Validates the clue chain for a murder (ensures perpetrator is reachable from
+ * the crime scene through the clue graph) and runs fix attempts when invalid.
+ * Repeats until the chain is valid or the maximum number of fix attempts is
+ * exhausted. Each fix invokes the chain validator agent to repair missing or
+ * broken clue links.
+ *
+ * @param murderId - The murder to validate
+ * @param maxFixAttempts - Maximum number of fix iterations before giving up
+ * @param maxFixRecursionLimit - Recursion limit passed to the chain fix agent
+ * @returns Object with valid flag, the validation result (depth map etc.), and
+ *   the current murder record
+ */
+async function validateAndFixChain(
+  murderId: number,
+  maxFixAttempts: number,
+  maxFixRecursionLimit: number,
+) {
+  let murder;
+  let validation;
+  let fix = 0;
+  while (true) {
+    murder = await db.query.murders.findFirst({
+      where: eq(murders.id, murderId),
+    });
+    validation = await validateChain(
+      murderId,
+      murder!.perpetratorId!,
+      murder!.victimId!,
+    );
+    if (validation.valid) break;
+    if (fix >= maxFixAttempts) break;
+    fix++;
+    console.warn(
+      `🔧 Fix attempt ${fix}/${maxFixAttempts}: ${validation.reason}`,
+    );
+    await runChainFix(murderId, validation.reason!, {
+      recursionLimit: maxFixRecursionLimit,
+    });
+  }
+  return { valid: validation.valid, validation, murder };
+}
+
+/**
+ * Verifies narrative coherence of a murder (clue descriptions, motives, story
+ * consistency) and runs fix attempts when invalid. Repeats until the narrative
+ * is valid or the maximum number of fix attempts is exhausted. Each fix
+ * invokes the narrative evaluator agent to correct inconsistencies.
+ *
+ * @param murderId - The murder to verify
+ * @param maxFixAttempts - Maximum number of fix iterations before giving up
+ * @param maxFixRecursionLimit - Recursion limit passed to the narrative fix agent
+ * @returns Object with valid flag and the narrative verification result
+ */
+async function validateAndFixNarrative(
+  murderId: number,
+  maxFixAttempts: number,
+  maxFixRecursionLimit: number,
+) {
+  let narrative = await verifyNarrative(murderId);
+  let fix = 0;
+  while (!narrative.valid && fix < maxFixAttempts) {
+    fix++;
+    console.warn(
+      `🔧 Narrative fix attempt ${fix}/${maxFixAttempts}: ${narrative.reason}`,
+    );
+    await runNarrativeFix(murderId, narrative.reason!, {
+      recursionLimit: maxFixRecursionLimit,
+    });
+    narrative = await verifyNarrative(murderId);
+  }
+  return { valid: narrative.valid, narrative };
+}
+
+const cleanupMurder = async (murderId: number) => {
   // Nullify FK references on murder first to avoid circular FK violations
   await db
     .update(murders)
@@ -62,51 +136,28 @@ export const generateMurder = async (
     });
 
     const murderId = getMurderId();
-    let murder = await db.query.murders.findFirst({
-      where: eq(murders.id, murderId),
-    });
 
-    let validation = await validateChain(
+    const {
+      valid: chainValid,
+      validation,
+      murder,
+    } = await validateAndFixChain(
       murderId,
-      murder!.perpetratorId!,
-      murder!.victimId!,
+      maxFixAttempts,
+      maxFixRecursionLimit,
     );
 
-    if (!validation.valid) {
-      let fixed = false;
-      for (let fix = 1; fix <= maxFixAttempts; fix++) {
-        console.warn(
-          `🔧 Fix attempt ${fix}/${maxFixAttempts}: ${validation.reason}`,
+    if (!chainValid) {
+      console.warn(
+        `⚠️  Attempt ${attempt}: still invalid after fixes — ${validation.reason}. Cleaning up...`,
+      );
+      await cleanupMurder(murderId);
+      if (attempt === maxRetries) {
+        throw new Error(
+          `Failed to generate a valid murder mystery after ${maxRetries} attempts`,
         );
-        await runChainFix(murderId, validation.reason!, {
-          recursionLimit: maxFixRecursionLimit,
-        });
-        murder = await db.query.murders.findFirst({
-          where: eq(murders.id, murderId),
-        });
-        validation = await validateChain(
-          murderId,
-          murder!.perpetratorId!,
-          murder!.victimId!,
-        );
-        if (validation.valid) {
-          fixed = true;
-          break;
-        }
       }
-
-      if (!fixed) {
-        console.warn(
-          `⚠️  Attempt ${attempt}: still invalid after fixes — ${validation.reason}. Cleaning up...`,
-        );
-        await cleanupMurder(murderId);
-        if (attempt === maxRetries) {
-          throw new Error(
-            `Failed to generate a valid murder mystery after ${maxRetries} attempts`,
-          );
-        }
-        continue;
-      }
+      continue;
     }
 
     const perpetratorDepth = validation.depth!.get(murder!.perpetratorId!)!;
@@ -114,35 +165,23 @@ export const generateMurder = async (
       `✅ Chain validated — perpetrator is ${perpetratorDepth} step(s) from crime scene`,
     );
 
-    let narrative = await verifyNarrative(murderId);
-    if (!narrative.valid) {
-      let narrativeFixed = false;
-      for (let fix = 1; fix <= maxFixAttempts; fix++) {
-        console.warn(
-          `🔧 Narrative fix attempt ${fix}/${maxFixAttempts}: ${narrative.reason}`,
-        );
-        await runNarrativeFix(murderId, narrative.reason!, {
-          recursionLimit: maxFixRecursionLimit,
-        });
-        narrative = await verifyNarrative(murderId);
-        if (narrative.valid) {
-          narrativeFixed = true;
-          break;
-        }
-      }
+    const { valid: narrativeValid, narrative } = await validateAndFixNarrative(
+      murderId,
+      maxFixAttempts,
+      maxFixRecursionLimit,
+    );
 
-      if (!narrativeFixed) {
-        console.warn(
-          `⚠️  Attempt ${attempt}: narrative still invalid after fixes — ${narrative.reason}. Cleaning up...`,
+    if (!narrativeValid) {
+      console.warn(
+        `⚠️  Attempt ${attempt}: narrative still invalid after fixes — ${narrative.reason}. Cleaning up...`,
+      );
+      await cleanupMurder(murderId);
+      if (attempt === maxRetries) {
+        throw new Error(
+          `Failed to generate a narratively coherent murder mystery after ${maxRetries} attempts`,
         );
-        await cleanupMurder(murderId);
-        if (attempt === maxRetries) {
-          throw new Error(
-            `Failed to generate a narratively coherent murder mystery after ${maxRetries} attempts`,
-          );
-        }
-        continue;
       }
+      continue;
     }
     console.log(`✅ Narrative verified`);
 

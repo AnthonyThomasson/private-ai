@@ -1,7 +1,7 @@
 import { createDeepAgent } from "deepagents";
 import { readFileSync } from "fs";
 import { join } from "path";
-import { buildFixTools } from "../fix-tools";
+import { getFixTools } from "../../tools/index";
 
 const SYSTEM_PROMPT = readFileSync(
   join(__dirname, "prompts", "system.md"),
@@ -15,8 +15,7 @@ export const runNarrativeFix = async (
 ) => {
   const { recursionLimit = 16 } = opts;
   const narrativeFixAgent = createDeepAgent({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tools: buildFixTools(murderId) as any,
+    tools: getFixTools(murderId),
     model: "openai:o4-mini",
     systemPrompt: SYSTEM_PROMPT,
   });
