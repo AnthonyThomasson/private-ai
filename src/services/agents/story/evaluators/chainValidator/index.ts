@@ -171,10 +171,38 @@ async function validateChain(
     };
   }
 
-  // Check that the perpetrator's name does not appear in any clue description or relation text
+  // Check that at least one visible clue link points to a CSI character
+  const visibleLinks = allLinks.filter(
+    (l) => l.isVisible === 1 && l.personId !== victimId,
+  );
+  const visiblePersonIdList = [
+    ...new Set(visibleLinks.map((l) => l.personId!)),
+  ];
+  const visiblePeople = await db.query.people.findMany({
+    where: (p, { inArray }) => inArray(p.id, visiblePersonIdList),
+  });
+  const hasCsiAtScene = visiblePeople.some(
+    (p) => (p as { type?: string }).type === "csi",
+  );
+  if (!hasCsiAtScene) {
+    return {
+      valid: false,
+      reason:
+        "No CSI character linked to the initial visible crime-scene clues — at least one visible clue must link to a CSI character (type='csi')",
+    };
+  }
+
+  // Check that the perpetrator is not a CSI character
   const perpetratorPerson = await db.query.people.findFirst({
     where: eq(people.id, perpetratorId),
   });
+  if ((perpetratorPerson as { type?: string } | undefined)?.type === "csi") {
+    return {
+      valid: false,
+      reason:
+        "The perpetrator is a CSI character — CSI characters must never be the perpetrator",
+    };
+  }
   if (perpetratorPerson) {
     const perpetratorName = perpetratorPerson.name.toLowerCase();
     const allClues = await db.query.clues.findMany({

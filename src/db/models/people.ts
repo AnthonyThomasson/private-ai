@@ -21,6 +21,9 @@ export const people = sqliteTable("people", {
   description: text("description"),
   personality: text("personality"),
   motive: text("motive"),
+  type: text("type", { enum: ["witness", "csi"] })
+    .notNull()
+    .default("witness"),
   image: text("image"),
   stress: int("stress").notNull().default(0),
 

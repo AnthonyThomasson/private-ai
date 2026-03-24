@@ -13,6 +13,9 @@ Before calling any tools, use write_todos to lay out:
   h) The perpetrator's motive — a specific, believable reason grounded in the setting and relationships
      (e.g. inheritance dispute, jealousy, blackmail, silencing a witness, revenge). Must be consistent
      with the clue chain you design.
+  i) At least one CSI character (forensic technician, medical examiner, crime lab analyst, ballistics
+     expert, toxicologist, etc.) who will be the informant for the first visible crime-scene clue(s).
+     CSI characters MUST NOT be the perpetrator.
 
 CHAIN RULES — non-negotiable:
 - Chain depth MUST be ≥ 2 intermediate suspects before the perpetrator is reachable
@@ -24,6 +27,18 @@ CHAIN RULES — non-negotiable:
 - Every clue in the chain must be consistent with the perpetrator's motive. The motive must NOT
   appear in any clue text, but the clues should logically support why someone with that motive
   would commit this crime.
+
+## CSI Characters
+
+Every murder MUST include at least one CSI character — a forensic professional (medical examiner, crime lab analyst, ballistics expert, toxicologist, fingerprint technician, etc.) who processes the physical evidence at or linked to the crime scene.
+
+**Rules for CSI characters:**
+- Pass `type: "csi"` when calling `create_person` for them.
+- The **first visible crime-scene clue(s) MUST link to a CSI character** as the informant. They are the first person the player interviews.
+- Their relation text must sound technical and scientific — lab results, measurements, trace evidence — not a casual eyewitness account.
+- CSI characters can also appear as informants for forensic bridge clues deeper in the chain.
+- A CSI character links to the NEXT suspect as usual (bridge clue structure — CSI character is informant, next suspect is the other link).
+- **CSI characters MUST NOT be the perpetrator.**
 
 ## Setup
 1. Invent a realistic murder: a specific type (poisoning, stabbing, etc.) and location on Earth
@@ -84,14 +99,17 @@ This is how new suspects unlock. If a clue only links to one person, no new susp
 - This ensures the player cannot trivially follow a single linear path to the perpetrator
 
 ## Example Chain (follow this structure)
-1. C1 (visible): "A monogrammed handkerchief near the body" → linked to Person A
-   - Person A.relation: "Saw someone arguing with the victim at 11pm near the study"
-   - mark_clue_visible on C1's link to Person A
 
-2. C2 (hidden): "CCTV footage of a figure in a distinctive coat" → linked to Person A AND Person B
-   - Person A.relation: "That coat — I know exactly who owns one like that"
-   - Person B.relation: "Was seen on CCTV near the victim's building that night"
-   Person A reveals C2 in interview → C2's link to Person B becomes visible → Person B unlocks in sidebar
+The first visible clue MUST link to a CSI character. They act as the bridge into the human chain.
+
+1. C1 (visible): "Trace fibres and a partial shoe print found at the entry point" → linked to CSI Character (type=csi)
+   - CSI Character.relation: "The fibres are consistent with a high-end wool overcoat; the print is a size 11 men's dress shoe — rare combination."
+   - mark_clue_visible on C1's link to CSI Character
+
+2. C2 (hidden): "CCTV footage of a figure in a distinctive coat" → linked to CSI Character AND Person B
+   - CSI Character.relation: "The coat in the footage matches the fibre profile exactly — whoever wore it left those fibres at the scene."
+   - Person B.relation: "Was seen on CCTV near the victim's building that night in a matching coat"
+   CSI Character reveals C2 in interview → C2's link to Person B becomes visible → Person B unlocks in sidebar
 
 3. C3 (hidden): "A threatening letter in the victim's apartment" → linked to Person B AND Perpetrator
    - Person B.relation: "Recognized the handwriting from a note they'd seen before"
@@ -100,6 +118,9 @@ This is how new suspects unlock. If a clue only links to one person, no new susp
 
 ## Final Check (BEFORE finishing)
 Verify every rule is met before stopping:
+- [ ] At least one CSI character created with `type: "csi"`
+- [ ] First visible crime-scene clue(s) link to a CSI character as informant
+- [ ] CSI character is NOT the perpetrator
 - [ ] No clue links on the victim
 - [ ] Every non-initial suspect has a bridge clue that links them to their predecessor
 - [ ] The perpetrator's clue is linked to the second-to-last suspect

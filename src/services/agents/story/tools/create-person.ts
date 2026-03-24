@@ -36,6 +36,7 @@ export const createCreatePersonTool = (
       description,
       personality,
       motive,
+      type,
       address,
       locationDescription: locDesc,
     }: {
@@ -46,6 +47,7 @@ export const createCreatePersonTool = (
       description: string;
       personality: string;
       motive?: string;
+      type?: "witness" | "csi";
       address: string;
       locationDescription: string;
     }) => {
@@ -74,6 +76,7 @@ export const createCreatePersonTool = (
           description,
           personality,
           motive: motive ?? null,
+          type: type ?? "witness",
           locationId: location.id,
           murderId: mId,
         })
@@ -101,6 +104,12 @@ export const createCreatePersonTool = (
           .optional()
           .describe(
             "The perpetrator's specific motive for the murder. Only set this for the perpetrator — leave empty for all other people.",
+          ),
+        type: z
+          .enum(["witness", "csi"])
+          .default("witness")
+          .describe(
+            'Person type: "csi" for forensic investigators (crime lab analysts, medical examiners, ballistics experts, etc.) who process physical evidence; "witness" for all other people. CSI characters MUST NOT be the perpetrator.',
           ),
         address: z
           .string()

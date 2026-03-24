@@ -72,4 +72,22 @@ Return `valid: true` only if ALL of the following criteria are met. Return `vali
 
 ---
 
+---
+
+## 8. CSI Character Plausibility
+
+- Any person with `type = "csi"` must have an occupation consistent with forensic investigation (e.g. forensic technician, crime lab analyst, medical examiner, ballistics expert, toxicologist, fingerprint specialist).
+- Their relation text must reflect technical or scientific knowledge appropriate to that role (e.g. lab results, physical measurements, trace evidence analysis). It must NOT read like a casual eyewitness account.
+- A CSI character must NOT be the perpetrator of the crime.
+
+**FAIL examples:**
+- CSI character with occupation "retired teacher" whose relation text says "I noticed something odd near the body"
+- CSI character with occupation "forensic analyst" who is also the perpetrator
+
+**PASS examples:**
+- CSI character: forensic technician, relation: "Trace evidence on the victim's clothing matched fibres consistent with a wool overcoat — unusual for the season"
+- CSI character: medical examiner, relation: "Toxicology confirmed traces of a fast-acting barbiturate in the victim's bloodstream"
+
+---
+
 Be strict but fair. Small stylistic imperfections are acceptable. Only return `valid: false` for genuine narrative problems that would confuse a player or break immersion.

@@ -43,7 +43,7 @@ export const generateMurder = async (
 
     const seed = await getMurderSeed();
     console.log(
-      `🗿 Inspiration: ${seed.type} | ${seed.location} | ${seed.era} | ${seed.motiveCategory}`,
+      `🗿 Inspiration: ${seed.type} | ${seed.location} | ${seed.motiveCategory}`,
     );
 
     console.log(
@@ -53,7 +53,7 @@ export const generateMurder = async (
       messages: [
         {
           role: "user",
-          content: `Generate a murder mystery. Use this as inspiration: a ${seed.type} in ${seed.location}. Era: ${seed.era}. Motive inspiration (category only): ${seed.motiveCategory}. The actual motive must be specific and grounded in the story.`,
+          content: `Generate a murder mystery. Use this as inspiration: a ${seed.type} in ${seed.location}. Motive inspiration (category only): ${seed.motiveCategory}. The actual motive must be specific and grounded in the story.`,
         },
       ],
     });

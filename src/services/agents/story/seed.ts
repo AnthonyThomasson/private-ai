@@ -5,22 +5,20 @@ import { pickRandom } from "@/services/agents/utils/randomModifier";
 type Context = {
   location: string | null;
   type: string | null;
-  era: string | null;
   motiveCategory: string | null;
 };
 
 /**
- * Returns a random murder seed (type, location, era, motive category) for
- * story generation. Shuffles the order of type/location and era/motive
- * selection. Validates that the combination is possible before returning.
+ * Returns a random murder seed (type, location, motive category) for
+ * story generation. Shuffles the order of type/location selection.
+ * Validates that the combination is possible before returning.
  *
- * @returns Seed object with type, location, era, motiveCategory
+ * @returns Seed object with type, location, motiveCategory
  */
 export const getMurderSeed = async () => {
   let context: Context = {
     location: null,
     type: null,
-    era: null,
     motiveCategory: null,
   };
 
@@ -32,9 +30,7 @@ export const getMurderSeed = async () => {
     maxAttempts--;
   } while (!(await isItPossible(context)) && maxAttempts > 0);
 
-  for (const fn of shuffle([getEra, getMotiveCategory])) {
-    context = await fn(context);
-  }
+  context = await getMotiveCategory(context);
 
   return context;
 };
@@ -103,23 +99,6 @@ const getLocationOfMurder = async (context: Context): Promise<Context> => {
     console.error("🤖 Error getting murder locations:", error);
   }
   context.location = pickRandom(locations.locations);
-  return context;
-};
-
-/** Picks a random era via LLM and mutates context. */
-const getEra = async (context: Context): Promise<Context> => {
-  const model = new ChatOpenAI({ model: "gpt-4.1-mini" });
-  const schema = z.object({
-    eras: z.array(
-      z.string().describe("A time period or era, in no more than 10 words"),
-    ),
-  });
-  const structuredLlm =
-    model.withStructuredOutput<z.infer<typeof schema>>(schema);
-  const result = await structuredLlm.invoke(
-    `Generate a list of 20 distinct time periods or eras for a murder mystery (e.g. 1920s, Victorian London, 1970s, modern day). Each in no more than 5 words.`,
-  );
-  context.era = pickRandom(result.eras);
   return context;
 };
 

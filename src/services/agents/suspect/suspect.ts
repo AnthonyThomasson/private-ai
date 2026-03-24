@@ -9,7 +9,11 @@ import { ChatOpenAI } from "@langchain/openai";
 import { ChatMessageHistory } from "./memory/chatHistory";
 import { cookies } from "next/headers";
 
-const buildSystemPrompt = (suspect: Person, isPerpetrator: boolean) => {
+const buildSystemPrompt = (
+  suspect: Person,
+  isPerpetrator: boolean,
+  isCSI: boolean,
+) => {
   const clueContext = suspect.clueLinks
     .map((link) => {
       const clue = (link as { clue?: { description?: string } }).clue;
@@ -35,7 +39,22 @@ ${motiveContext}
 MURDER CONTEXT (background only — do not disclose directly):
 ${JSON.stringify((suspect as { murder?: unknown }).murder ?? {})}
 
-STRESS MECHANICS:
+${
+  isCSI
+    ? `ROLE: You are a forensic professional. Sharing evidence is your job — you are cooperative, clinical, and objective. You do not hide findings.
+
+BEFORE COMPOSING YOUR RESPONSE:
+1. Check if the interviewer's question touches any of your forensic findings above.
+2. If it does, share your findings clearly and professionally — you have no reason to withhold documented evidence.
+3. Ensure your answer is consistent with anything you've said before in this conversation.
+4. After writing your response, call update_stress once to set your new stress level.
+5. If your response shares forensic findings from one of your clue connections above, call reveal_clue_link with that clue link's ID immediately — you have no professional reason to withhold documented evidence. Reveal at most one clue link per response.
+
+STRESS UPDATE RULES:
+- Your stress starts and stays very low. Increase it only if you are directly accused of wrongdoing or asked about something outside your professional role.
+- If a question is about evidence or forensics, keep stress the same or decrease it slightly — this is routine work for you.
+- Maximum stress increase per response: 5 points.`
+    : `STRESS MECHANICS:
 Your current stress level is ${suspect.stress}/100.
 
 How stress affects your behaviour:
@@ -56,15 +75,15 @@ BEFORE COMPOSING YOUR RESPONSE:
 STRESS UPDATE RULES:
 - Increase stress if the question directly touched one of your clue connections, mentioned real evidence, or accused you of something true.
 - Decrease stress slightly (minimum: current value ÷ 2) if the question was off-topic or you deflected successfully.
-- Keep stress the same if the question was neutral or irrelevant.
+- Keep stress the same if the question was neutral or irrelevant.`
+}
 
 OUTPUT RULES:
 - Respond in first person, 1–3 short sentences maximum. Like real speech — not a monologue.
-- Terse, natural, conversational. No formal phrasing.
+- ${isCSI ? "Clinical, precise, professional. You speak like a scientist, not a nervous witness." : "Terse, natural, conversational. No formal phrasing."}
 - Never break the fourth wall or reference that you were given a profile.
 - ${isPerpetrator ? "You MUST confess if stress = 100." : "You MUST NOT admit to the murder or name the real perpetrator."}
-- Do NOT mention your location unless the interviewer asks about it or it is directly relevant to answering the question.
-- Let your personality traits drive your tone and word choice.`;
+- ${isCSI ? "" : "Do NOT mention your location unless the interviewer asks about it or it is directly relevant to answering the question.\n- "}Let your personality traits drive your tone and word choice.`;
 };
 
 export const processMessage = async (suspectId: number, message: string) => {
@@ -95,6 +114,7 @@ export const processMessage = async (suspectId: number, message: string) => {
 
   const murder = (suspect as { murder?: { perpetratorId?: number } }).murder;
   const isPerpetrator = murder?.perpetratorId === suspect.id;
+  const isCSI = (suspect as { type?: string }).type === "csi";
 
   const updateStress = tool(
     async ({ stress }: { stress: number }) => {
@@ -152,7 +172,7 @@ export const processMessage = async (suspectId: number, message: string) => {
     tools: [updateStress, revealClueLink] as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     model: new ChatOpenAI({ model: "gpt-4.1-mini" }) as any,
-    systemPrompt: buildSystemPrompt(suspect, isPerpetrator),
+    systemPrompt: buildSystemPrompt(suspect, isPerpetrator, isCSI),
   });
 
   const result = await agent.invoke({
