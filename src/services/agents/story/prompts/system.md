@@ -87,6 +87,17 @@ This is how new suspects unlock. If a clue only links to one person, no new susp
 - The informant is the person who currently has visible clue links (already in sidebar)
 - Do NOT mark these visible — they start hidden and unlock when the informant reveals them
 
+⚠️  BRIDGE CLUE NAMING RULE (non-negotiable):
+The informant's relation text for every bridge clue MUST explicitly reference the next suspect
+who will be unlocked. This is critical because the relation text is what drives the informant's
+conversation — if it doesn't mention the next person, the player sees a new suspect appear in
+the sidebar with zero conversational context, which feels like magic.
+- For non-perpetrator links: mention the next suspect BY NAME in the informant's relation text
+  (e.g., "I saw Marcus leaving through the back exit that night")
+- For perpetrator-linking clues: describe the perpetrator INDIRECTLY without using their name
+  (e.g., "someone matching that description was seen arguing with the victim")
+- Dead-end clues follow the same rule: the informant's relation must name the red herring suspect
+
 ### Perpetrator-linking clue (HIDDEN — the final step)
 - The last clue in the chain links to the perpetrator
 - The preceding suspect reveals it; the perpetrator becomes discoverable
@@ -107,14 +118,14 @@ The first visible clue MUST link to a CSI character. They act as the bridge into
    - mark_clue_visible on C1's link to CSI Character
 
 2. C2 (hidden): "CCTV footage of a figure in a distinctive coat" → linked to CSI Character AND Person B
-   - CSI Character.relation: "The coat in the footage matches the fibre profile exactly — whoever wore it left those fibres at the scene."
+   - CSI Character.relation: "The coat in the footage matches the fibre profile exactly — I'd check with Person B, the gallery owner on Fifth Street. CCTV places them near the building wearing that exact type of coat."
    - Person B.relation: "Was seen on CCTV near the victim's building that night in a matching coat"
-   CSI Character reveals C2 in interview → C2's link to Person B becomes visible → Person B unlocks in sidebar
+   CSI Character reveals C2 in interview → mentions Person B by name → Person B unlocks in sidebar
 
 3. C3 (hidden): "A threatening letter in the victim's apartment" → linked to Person B AND Perpetrator
-   - Person B.relation: "Recognized the handwriting from a note they'd seen before"
+   - Person B.relation: "I recognized the handwriting from a note I'd seen before — it was written by someone the victim had been meeting with in private, someone they seemed afraid of."
    - Perpetrator.relation: "Wrote the letter under a false name three weeks before the murder"
-   Person B reveals C3 → Perpetrator becomes discoverable
+   Person B reveals C3 → describes the perpetrator indirectly → Perpetrator becomes discoverable
 
 ## Final Check (BEFORE finishing)
 Verify every rule is met before stopping:
@@ -129,7 +140,8 @@ Verify every rule is met before stopping:
 - [ ] Bridge clues are NOT marked visible
 - [ ] Chain depth from crime scene to perpetrator is ≥ 2 intermediate suspects (not 1!)
 - [ ] At least one initial suspect leads to a dead-end, not toward the perpetrator
-- [ ] The perpetrator's NAME does not appear anywhere in any clue description or relation text
+- [ ] The perpetrator's NAME does not appear anywhere in any clue description, relation text, or other characters' occupations
+- [ ] Every bridge clue's informant relation text mentions the next suspect (by name for non-perpetrator links, indirectly for perpetrator links)
 
 ## Rules
 - clue.description = the observable fact the player sees. Always looks suspicious. Never reveals
@@ -139,12 +151,13 @@ Verify every rule is met before stopping:
 - For each clue: create any new people it references with create_person first, then call create_clue.
 - Clues are objective facts only — never interrogation results, never opinions.
 - All person names must be unique.
-- ❌ CRITICAL: The perpetrator's name MUST NEVER appear in any clue description or any relation text.
+- ❌ CRITICAL: The perpetrator's name MUST NEVER appear in any clue description, any relation text,
+  or any other character's occupation or description field.
   This applies to ALL clues, including bridge clues and the final perpetrator-linking clue.
   WRONG: "Security footage shows [Perpetrator] acting aggressively near the victim"
   RIGHT: "Security footage shows an unidentified figure behaving aggressively near the victim"
-  WRONG: "Testimony about [Perpetrator]'s suspicious behavior near the scene"
-  RIGHT: "Testimony about a suspicious individual seen lingering near the victim's area"
+  WRONG: occupation: "Campaign manager for [Perpetrator]"
+  RIGHT: occupation: "Campaign manager" (no name reference)
   The perpetrator's personId is used to link them to the final clue — their NAME must stay out of all text.
 - Keep the full cast of people narratively coherent with each other and the crime scene.
 - Create 5–7 clues total (1–2 visible crime-scene clues, 2–3 hidden bridge clues, 1 dead-end clue, 1 perpetrator clue).

@@ -33,11 +33,50 @@ export const buildTools = () => {
   let murderId: number | null = null;
 
   const getMurderId = () => {
+    // #region agent log
+    const stack = new Error().stack?.split("\n").slice(0, 8).join(" | ") ?? "";
+    fetch("http://127.0.0.1:7868/ingest/3a52e14a-ed84-4230-9df8-7727a1318bad", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "d43a9a",
+      },
+      body: JSON.stringify({
+        sessionId: "d43a9a",
+        location: "tools/index.ts:getMurderId",
+        message: "getMurderId called",
+        data: {
+          murderIdSet: murderId != null,
+          murderId,
+          stackSnippet: stack,
+        },
+        timestamp: Date.now(),
+        hypothesisId: "A_B_D",
+      }),
+    }).catch(() => {});
+    // #endregion
     if (!murderId) throw new Error("Murder scene not created yet");
     return murderId;
   };
 
   const setMurderId = (id: number) => {
+    // #region agent log
+    fetch("http://127.0.0.1:7868/ingest/3a52e14a-ed84-4230-9df8-7727a1318bad", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "d43a9a",
+      },
+      body: JSON.stringify({
+        sessionId: "d43a9a",
+        location: "tools/index.ts:setMurderId",
+        message: "murder scene id bound",
+        data: { id },
+        timestamp: Date.now(),
+        hypothesisId: "C_E",
+      }),
+    }).catch(() => {});
+    // #endregion
     murderId = id;
   };
 

@@ -90,4 +90,36 @@ Return `valid: true` only if ALL of the following criteria are met. Return `vali
 
 ---
 
+## 9. Bridge Clue Connectivity
+
+For each hidden bridge clue (linked to two non-victim people — an informant and a next suspect):
+- The informant's relation text MUST reference or mention the next suspect who will be unlocked.
+- For non-perpetrator links: the next suspect should be mentioned by name or clearly identifiable role in the informant's relation text.
+- For perpetrator-linking clues: the next suspect must be described indirectly (never by name) but in a way that gives the player a reason to look for "someone" matching that description.
+- A bridge clue where the informant's relation text has zero mention of the next person is a FAIL — this creates a "magical appearance" where a new suspect shows up with no conversational explanation.
+
+**FAIL examples:**
+- Informant relation: "The fibres match a wool overcoat" (never mentions the person wearing the coat)
+- Informant relation: "I found traces of a rare toxin" (doesn't point toward anyone specific)
+
+**PASS examples:**
+- Informant relation: "The fibres match a wool overcoat — I'd check with Marcus Chen, the tailor on Elm Street. He's the only one who makes that pattern."
+- Informant relation (perpetrator link): "The handwriting matches notes I've seen before, written by someone the victim had been meeting privately — someone they seemed afraid of."
+
+---
+
+## 10. Perpetrator Name in Character Fields
+
+The perpetrator's name must not appear in any other character's occupation or description fields. This prevents revealing the perpetrator's identity through a character's profile (e.g., occupation: "Campaign manager for [Perpetrator]" would leak the perpetrator's name in the UI).
+
+**FAIL examples:**
+- Witness occupation: "Business partner of John Smith" (where John Smith is the perpetrator)
+- Witness description: "Close friend of the perpetrator Marcus" (perpetrator named)
+
+**PASS examples:**
+- Witness occupation: "Campaign manager" (no name reference)
+- Witness description: "Works closely with several council members" (generic)
+
+---
+
 Be strict but fair. Small stylistic imperfections are acceptable. Only return `valid: false` for genuine narrative problems that would confuse a player or break immersion.

@@ -227,6 +227,59 @@ async function validateChain(
         };
       }
     }
+
+    // Check perpetrator name leak in other characters' occupations and descriptions
+    const allPeople = await db.query.people.findMany({
+      where: eq(people.murderId, murderId),
+    });
+    for (const person of allPeople) {
+      if (person.id === perpetratorId) continue;
+      if (person.occupation?.toLowerCase().includes(perpetratorName)) {
+        return {
+          valid: false,
+          reason: `Perpetrator's name "${perpetratorPerson.name}" appears in ${person.name}'s occupation: "${person.occupation}"`,
+        };
+      }
+      if (person.description?.toLowerCase().includes(perpetratorName)) {
+        return {
+          valid: false,
+          reason: `Perpetrator's name "${perpetratorPerson.name}" appears in ${person.name}'s description`,
+        };
+      }
+    }
+
+    // Check bridge clue connectivity: informant relation should mention next suspect
+    const allPeopleMap = new Map(allPeople.map((p) => [p.id, p]));
+    for (const clueRow of allClues) {
+      const linksForClue = allLinks.filter((l) => l.clueId === clueRow.id);
+      // Skip visible clues (crime-scene clues, not bridges)
+      if (linksForClue.some((l) => l.isVisible === 1)) continue;
+      const linkedPersonIds = [
+        ...new Set(linksForClue.map((l) => l.personId!)),
+      ].filter((id) => id !== victimId);
+      // Bridge clues link exactly 2 non-victim persons
+      if (linkedPersonIds.length !== 2) continue;
+      const [idA, idB] = linkedPersonIds;
+      // Skip perpetrator-linking clues (can't name the perpetrator)
+      if (idA === perpetratorId || idB === perpetratorId) continue;
+      const personA = allPeopleMap.get(idA);
+      const personB = allPeopleMap.get(idB);
+      if (!personA || !personB) continue;
+      const linkA = linksForClue.find((l) => l.personId === idA);
+      const linkB = linksForClue.find((l) => l.personId === idB);
+      const aRefB = linkA?.description
+        ?.toLowerCase()
+        .includes(personB.name.toLowerCase());
+      const bRefA = linkB?.description
+        ?.toLowerCase()
+        .includes(personA.name.toLowerCase());
+      if (!aRefB && !bRefA) {
+        return {
+          valid: false,
+          reason: `Bridge clue "${clueRow.description.slice(0, 60)}..." — neither ${personA.name}'s nor ${personB.name}'s relation text mentions the other person. The informant's relation must name the next suspect so the player understands why a new person appeared.`,
+        };
+      }
+    }
   }
 
   return { valid: true, depth };

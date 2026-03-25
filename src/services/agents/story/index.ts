@@ -58,6 +58,24 @@ export const generateMurder = async (
       ],
     });
 
+    // #region agent log
+    fetch("http://127.0.0.1:7868/ingest/3a52e14a-ed84-4230-9df8-7727a1318bad", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "d43a9a",
+      },
+      body: JSON.stringify({
+        sessionId: "d43a9a",
+        location: "story/index.ts:generateMurder",
+        message: "agent.invoke finished, about to getMurderId",
+        data: { attempt },
+        timestamp: Date.now(),
+        hypothesisId: "B",
+      }),
+    }).catch(() => {});
+    // #endregion
+
     const murderId = getMurderId();
 
     const {

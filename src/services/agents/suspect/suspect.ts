@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { people, Person } from "@/db/models/people";
 import { clueLinks } from "@/db/models/clueLink";
 import { tool } from "@langchain/core/tools";
-import { eq } from "drizzle-orm";
+import { eq, inArray, ne, and } from "drizzle-orm";
 import { z } from "zod";
 import { createDeepAgent } from "deepagents";
 import { ChatOpenAI } from "@langchain/openai";
@@ -13,11 +13,27 @@ const buildSystemPrompt = (
   suspect: Person,
   isPerpetrator: boolean,
   isCSI: boolean,
+  coLinkedByClue: Map<
+    number,
+    { name: string; occupation: string | null; personId: number }[]
+  >,
+  perpetratorId: number,
 ) => {
   const clueContext = suspect.clueLinks
     .map((link) => {
       const clue = (link as { clue?: { description?: string } }).clue;
-      return `- [CLUE LINK ID: ${link.id}] Clue: "${clue?.description ?? "unknown"}" | What you know: "${link.description}"`;
+      const coLinked = coLinkedByClue.get(link.clueId!) ?? [];
+      const leadsTo = coLinked
+        .map((p) =>
+          p.personId === perpetratorId
+            ? "someone (unnamed suspect)"
+            : `${p.name} (${p.occupation ?? "unknown role"})`,
+        )
+        .join(", ");
+      const leadsToSuffix = leadsTo
+        ? ` | Connected person: ${leadsTo}`
+        : "";
+      return `- [CLUE LINK ID: ${link.id}] Clue: "${clue?.description ?? "unknown"}" | What you know: "${link.description}"${leadsToSuffix}`;
     })
     .join("\n");
 
@@ -49,6 +65,7 @@ BEFORE COMPOSING YOUR RESPONSE:
 3. Ensure your answer is consistent with anything you've said before in this conversation.
 4. After writing your response, call update_stress once to set your new stress level.
 5. If your response shares forensic findings from one of your clue connections above, call reveal_clue_link with that clue link's ID immediately — you have no professional reason to withhold documented evidence. Reveal at most one clue link per response.
+6. When you reveal a clue that has a "Connected person" listed, naturally mention that person in your response — say their name or describe them as part of what you know. This gives the investigator a lead to follow.
 
 STRESS UPDATE RULES:
 - Your stress starts and stays very low. Increase it only if you are directly accused of wrongdoing or asked about something outside your professional role.
@@ -71,6 +88,7 @@ BEFORE COMPOSING YOUR RESPONSE:
 4. Only mention your location if the interviewer asks about it or it is directly relevant to the question (e.g., alibi, where you were when something happened). Otherwise do not bring it up.
 5. After writing your response, call update_stress once to set your new stress level.
 6. If your response discloses information from one of your clue connections above, call reveal_clue_link with that clue link's ID. Only reveal when the question is directly relevant AND your stress is above 30, OR when you are directly and accurately asked about that specific clue. Reveal at most one clue link per response.
+7. When you reveal a clue that has a "Connected person" listed, naturally mention that person in your response — say their name or describe them as part of what you know. This gives the investigator a lead to follow.
 
 STRESS UPDATE RULES:
 - Increase stress if the question directly touched one of your clue connections, mentioned real evidence, or accused you of something true.
@@ -115,6 +133,32 @@ export const processMessage = async (suspectId: number, message: string) => {
   const murder = (suspect as { murder?: { perpetratorId?: number } }).murder;
   const isPerpetrator = murder?.perpetratorId === suspect.id;
   const isCSI = (suspect as { type?: string }).type === "csi";
+
+  // Fetch co-linked persons for each clue this suspect is connected to
+  const suspectClueIds = suspect.clueLinks
+    .map((link) => link.clueId)
+    .filter(Boolean) as number[];
+  const coLinkedData =
+    suspectClueIds.length > 0
+      ? await db.query.clueLinks.findMany({
+          where: and(
+            inArray(clueLinks.clueId, suspectClueIds),
+            ne(clueLinks.personId, suspectId),
+          ),
+          with: { person: true },
+        })
+      : [];
+  const coLinkedByClue = new Map<
+    number,
+    { name: string; occupation: string | null; personId: number }[]
+  >();
+  for (const link of coLinkedData) {
+    const person = (link as { person?: { name: string; occupation: string | null; id: number } }).person;
+    if (!person) continue;
+    const arr = coLinkedByClue.get(link.clueId!) ?? [];
+    arr.push({ name: person.name, occupation: person.occupation, personId: person.id });
+    coLinkedByClue.set(link.clueId!, arr);
+  }
 
   const updateStress = tool(
     async ({ stress }: { stress: number }) => {
@@ -172,7 +216,7 @@ export const processMessage = async (suspectId: number, message: string) => {
     tools: [updateStress, revealClueLink] as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     model: new ChatOpenAI({ model: "gpt-4.1-mini" }) as any,
-    systemPrompt: buildSystemPrompt(suspect, isPerpetrator, isCSI),
+    systemPrompt: buildSystemPrompt(suspect, isPerpetrator, isCSI, coLinkedByClue, murder?.perpetratorId ?? 0),
   });
 
   const result = await agent.invoke({
